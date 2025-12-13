@@ -1,3 +1,5 @@
+import CogitoCore.SMT
+
 namespace CogitoCore
 
 /-- Semantic version for the research prototype. -/
