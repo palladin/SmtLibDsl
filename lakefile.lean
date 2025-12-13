@@ -5,6 +5,9 @@ package «CogitoCore» where
   -- All Lean modules are relative to the repository root.
   srcDir := "."
 
+require LSpec from git
+  "https://github.com/argumentcomputer/LSpec" @ "main"
+
 lean_lib «CogitoCore» where
   -- We expose the aggregated `CogitoCore` module as the library entry point.
   roots := #[`CogitoCore]
@@ -12,3 +15,6 @@ lean_lib «CogitoCore» where
 @[default_target]
 lean_exe «cogito-core» where
   root := `Main
+
+lean_exe «cogito-test» where
+  root := `Tests.SMT
