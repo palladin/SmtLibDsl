@@ -1,6 +1,6 @@
 # CogitoCore
 
-An experimental project exploring the combination of **dependently-typed Lean DSL for SMT-LIB** with **Z3** and **powerful LLMs** to solve challenging reasoning puzzles and problems.
+An experimental AI project exploring the combination of **dependently-typed Lean DSL for SMT-LIB** with **Z3** and **powerful LLMs** to solve challenging reasoning puzzles and problems.
 
 ## The Idea
 
@@ -11,6 +11,13 @@ CogitoCore leverages the strengths of multiple paradigms:
 - **Large Language Models**: AI-powered understanding and problem decomposition
 
 By combining formal verification techniques with modern AI capabilities, CogitoCore aims to tackle complex logical reasoning tasks that neither approach could solve alone.
+
+## Features
+
+- **Type-safe SMT expressions**: Bitvector width and types are tracked at compile time
+- **Free monad DSL**: Composable SMT commands with do-notation
+- **SMT-LIB2 output**: Generate standards-compliant solver input
+- **Z3 integration**: Solve constraints directly from Lean
 
 ## Setup
 
@@ -47,6 +54,12 @@ lake build
 lake exe cogito-core
 ```
 
+### Run Tests
+
+```bash
+lake exe cogito-test
+```
+
 ### Configuration
 
 | Environment Variable | Description | Default |
@@ -76,11 +89,9 @@ def findX : Smt Unit := do
 (set-logic QF_BV)
 (declare-const x (_ BitVec 8))
 (assert (= (bvadd x (_ bv1 8)) (_ bv10 8)))
-(check-sat)
-(get-model)
 -/
 
--- Solve with Z3
+-- Solve with Z3 (automatically adds check-sat and get-model)
 #eval solve findX
 -- Result: sat [(x, #x09)]
 ```
@@ -90,12 +101,14 @@ def findX : Smt Unit := do
 ```
 CogitoCore/
 ├── SMT/
-│   ├── BitVec.lean   -- Type-indexed BV expressions
+│   ├── BitVec.lean   -- Type-indexed bitvector expressions
 │   ├── Cmd.lean      -- SMT commands & Smt monad
 │   ├── Compile.lean  -- Compile to SMT-LIB2
 │   └── Solver.lean   -- Z3 integration
-├── SMT.lean          -- Re-exports
-└── CogitoCore.lean   -- Main library
+├── SMT.lean          -- Re-exports SMT modules
+Main.lean             -- Example programs
+Tests/
+└── SMT.lean          -- Test suite
 ```
 
 ## License
