@@ -82,11 +82,7 @@ def tyTests : TestSeq :=
 -- Test compileCmd
 def compileCmdTests : TestSeq :=
   group "compileCmd" $
-    test "declareConst" ((compileCmd (Cmd.declareConst "x" (Ty.bitVec 8))).2 = "(declare-const x (_ BitVec 8))") $
-    test "checkSat" ((compileCmd Cmd.checkSat).2 = "(check-sat)") $
-    test "getModel" ((compileCmd Cmd.getModel).2 = "(get-model)") $
-    test "push" ((compileCmd Cmd.push).2 = "(push)") $
-    test "pop" ((compileCmd Cmd.pop).2 = "(pop)")
+    test "declareConst" ((compileCmd (Cmd.declareConst "x" (Ty.bitVec 8))).2 = "(declare-const x (_ BitVec 8))")
 
 -- Test full program compilation
 def compileTests : TestSeq :=
@@ -95,7 +91,7 @@ def compileTests : TestSeq :=
       let prog : Smt Unit := do
         let x ← declareBV "x" 8
         assert (x =. bv 5 8)
-      compile prog = "(set-logic QF_BV)\n(declare-const x (_ BitVec 8))\n(assert (= x (_ bv5 8)))"
+      compile prog = "(set-logic QF_BV)\n(declare-const x (_ BitVec 8))\n(assert (= x (_ bv5 8)))\n(check-sat)\n(get-model)"
     )
 
 -- All tests

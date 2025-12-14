@@ -7,14 +7,13 @@ import CogitoCore.SMT.Tensor
 
 namespace CogitoCore.SMT
 
+/-- Variable schema: list of (name, type) pairs tracking declared variables -/
+abbrev VarSchema := List (String × Ty)
+
 /-- SMT-LIB commands for QF_BV theory -/
 inductive Cmd : Type → Type _ where
   | declareConst : String → (ty : Ty) → Cmd (Expr ty)
   | assert       : Expr Ty.bool → Cmd Unit
-  | checkSat     : Cmd Unit
-  | getModel     : Cmd Unit
-  | push         : Cmd Unit
-  | pop          : Cmd Unit
 
 /-- Free monad for sequencing SMT commands -/
 inductive Smt : Type → Type _ where
@@ -30,6 +29,13 @@ def Smt.flatMap (ma : Smt α) (f : α → Smt β) : Smt β :=
 instance : Monad Smt where
   pure := Smt.pure
   bind := Smt.flatMap
+
+/-- Extract the variable schema from an Smt program -/
+def Smt.schema : Smt α → VarSchema
+  | .pure _ => []
+  | .bind (.declareConst name ty) f =>
+    (name, ty) :: schema (f (.var name ty))
+  | .bind (.assert _) f => schema (f ())
 
 -- Command API
 

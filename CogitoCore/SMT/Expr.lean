@@ -15,6 +15,61 @@ instance : ToString Ty where
   | Ty.bool => "Bool"
   | Ty.bitVec n => s!"(_ BitVec {n})"
 
+/-- Map SMT types to corresponding Lean types -/
+def Ty.LeanType : Ty → Type
+  | Ty.bool => Bool
+  | Ty.bitVec n => BitVec n
+
+/-- Parse an SMT-LIB boolean value to Lean Bool -/
+def parseBool (s : String) : Option Bool :=
+  if s == "true" then some true
+  else if s == "false" then some false
+  else none
+
+/-- Parse a hexadecimal character to its value -/
+private def hexDigitToNat? (c : Char) : Option Nat :=
+  if '0' ≤ c && c ≤ '9' then some (c.toNat - '0'.toNat)
+  else if 'a' ≤ c && c ≤ 'f' then some (c.toNat - 'a'.toNat + 10)
+  else if 'A' ≤ c && c ≤ 'F' then some (c.toNat - 'A'.toNat + 10)
+  else none
+
+/-- Parse a hexadecimal string to Nat -/
+private def hexToNat? (s : String) : Option Nat :=
+  s.foldl (fun acc c => do
+    let a ← acc
+    let d ← hexDigitToNat? c
+    some (a * 16 + d)
+  ) (some 0)
+
+/-- Parse a binary string to Nat -/
+private def binToNat? (s : String) : Option Nat :=
+  s.foldl (fun acc c => do
+    let a ← acc
+    if c == '0' then some (a * 2)
+    else if c == '1' then some (a * 2 + 1)
+    else none
+  ) (some 0)
+
+/-- Parse an SMT-LIB bitvector value to Lean BitVec -/
+def parseBitVec (s : String) (n : Nat) : Option (BitVec n) :=
+  if s.startsWith "#x" then
+    -- Hexadecimal: #x09
+    let hexStr := s.drop 2
+    hexToNat? hexStr |>.map (BitVec.ofNat n)
+  else if s.startsWith "#b" then
+    -- Binary: #b101
+    let binStr := s.drop 2
+    binToNat? binStr |>.map (BitVec.ofNat n)
+  else
+    -- Try decimal
+    s.toNat? |>.map (BitVec.ofNat n)
+
+/-- Parse an SMT-LIB value string to the corresponding Lean type -/
+def Ty.parse (ty : Ty) (s : String) : Option ty.LeanType :=
+  match ty with
+  | Ty.bool => parseBool s
+  | Ty.bitVec n => parseBitVec s n
+
 /-- Expressions indexed by sort, ensuring width-correctness at compile time -/
 inductive Expr : Ty → Type where
   -- Variables

@@ -70,14 +70,10 @@ def compileExpr : Expr ty → String
 def compileCmd : Cmd α → (α × String)
   | .declareConst name s => (.var name s, s!"(declare-const {name} {s})")
   | .assert e => ((), s!"(assert {compileExpr e})")
-  | .checkSat => ((), "(check-sat)")
-  | .getModel => ((), "(get-model)")
-  | .push => ((), "(push)")
-  | .pop => ((), "(pop)")
 
 /-- Compile an Smt program to SMT-LIB2 string (with QF_BV logic) -/
 partial def compile (smt : Smt Unit) : String :=
-  "(set-logic QF_BV)\n" ++ compileBody smt
+  "(set-logic QF_BV)\n" ++ compileBody smt ++ "\n(check-sat)\n(get-model)"
 where
   compileBody : Smt Unit → String
     | .pure () => ""

@@ -37,6 +37,13 @@ def main : IO UInt32 := do
   IO.println "Solving with Z3..."
   let result1 ← solve findX
   IO.println s!"Result: {result1}"
+  match result1 with
+  | .sat model =>
+    -- Use Model.get to extract typed value
+    match model.get "x" (Ty.bitVec 8) with
+    | some (xVal : BitVec 8) => IO.println s!"  x = {xVal.toNat} (decimal), 0x{xVal.toHex}"
+    | none => IO.println "  Failed to parse x"
+  | _ => pure ()
   IO.println ""
 
   IO.println "=== Example 2: Clear lowest bit ==="
@@ -45,6 +52,13 @@ def main : IO UInt32 := do
   IO.println "Solving with Z3..."
   let result2 ← solve clearLowestBit
   IO.println s!"Result: {result2}"
+  match result2 with
+  | .sat model =>
+    match model.get "x" (Ty.bitVec 8), model.get "result" (Ty.bitVec 8) with
+    | some (xVal : BitVec 8), some (resultVal : BitVec 8) =>
+      IO.println s!"  x = {xVal.toNat}, result = {resultVal.toNat}"
+    | _, _ => IO.println "  Failed to parse values"
+  | _ => pure ()
   IO.println ""
 
   IO.println "=== Example 3: Tensor declaration (2x3 matrix) ==="
@@ -53,5 +67,12 @@ def main : IO UInt32 := do
   IO.println "Solving with Z3..."
   let result3 ← solve tensorExample
   IO.println s!"Result: {result3}"
+  match result3 with
+  | .sat model =>
+    match model.get "m_0_0" (Ty.bitVec 8), model.get "m_1_2" (Ty.bitVec 8) with
+    | some (m00 : BitVec 8), some (m12 : BitVec 8) =>
+      IO.println s!"  m[0][0] = {m00.toNat}, m[1][2] = {m12.toNat}"
+    | _, _ => IO.println "  Failed to parse tensor values"
+  | _ => pure ()
 
   pure 0

@@ -6,27 +6,42 @@ import CogitoCore.SMT.Compile
 
 namespace CogitoCore.SMT
 
-/-- Result of a satisfiability check -/
-inductive Result where
-  | sat (model : List (String × String))
+/-- Model holding variable assignments, indexed by schema -/
+structure Model (vars : VarSchema) where
+  raw : List (String × String)
+
+/-- Lookup a variable value by name (runtime check, raw string) -/
+def Model.lookup (m : Model vars) (name : String) : Option String :=
+  m.raw.lookup name
+
+/-- Get a variable value with proof it exists in schema, parsed to Lean type -/
+def Model.get (m : Model vars) (name : String) (ty : Ty)
+    (_h : (name, ty) ∈ vars := by decide) : Option ty.LeanType :=
+  m.raw.lookup name >>= ty.parse
+
+instance : ToString (Model vars) where
+  toString m := toString m.raw
+
+/-- Result of a satisfiability check, indexed by variable schema -/
+inductive Result (vars : VarSchema) where
+  | sat (model : Model vars)
   | unsat
   | unknown (reason : String)
-deriving Repr
 
-instance : ToString Result where
+instance : ToString (Result vars) where
   toString
   | .sat model => s!"sat\n{model}"
   | .unsat => "unsat"
   | .unknown reason => s!"unknown ({reason})"
 
 /-- Parse the output from Z3 -/
-private def parseResult (output : String) : Result :=
+private def parseResultRaw (output : String) : (List (String × String)) ⊕ String :=
   let lines := output.splitOn "\n" |>.filter (·.length > 0)
   match lines with
-  | "sat" :: rest => .sat (parseModel (String.intercalate " " rest))
-  | "unsat" :: _ => .unsat
-  | "unknown" :: rest => .unknown (String.intercalate " " rest)
-  | _ => .unknown s!"Failed to parse: {output}"
+  | "sat" :: rest => .inl (parseModel (String.intercalate " " rest))
+  | "unsat" :: _ => .inr "unsat"
+  | "unknown" :: rest => .inr s!"unknown: {String.intercalate " " rest}"
+  | _ => .inr s!"Failed to parse: {output}"
 where
   parseModel (modelStr : String) : List (String × String) :=
     -- Parse: (define-fun name () Type value)
@@ -78,7 +93,7 @@ def checkZ3 : IO (Except String String) := do
     return .error s!"Z3 not found at '{z3Path}'.\n\nInstall Z3:\n  • macOS:  brew install z3\n  • Ubuntu: sudo apt-get install z3\n  • Or set COGITO_Z3_PATH environment variable"
 
 /-- Run Z3 on an SMT-LIB2 script string -/
-def runZ3 (script : String) : IO Result := do
+def runZ3 (vars : VarSchema) (script : String) : IO (Result vars) := do
   let z3Path ← getZ3Path
   let tempFile := "/tmp/cogito_query.smt2"
   IO.FS.writeFile tempFile script
@@ -89,14 +104,17 @@ def runZ3 (script : String) : IO Result := do
     }
     if output.exitCode != 0 && output.exitCode != 1 then
       return .unknown s!"Z3 error: {output.stderr}"
-    return parseResult output.stdout
+    match parseResultRaw output.stdout with
+    | .inl model => return .sat ⟨model⟩
+    | .inr "unsat" => return .unsat
+    | .inr reason => return .unknown reason
   catch e =>
     return .unknown s!"Failed to run Z3: {e}\n\nInstall Z3:\n  • macOS:  brew install z3\n  • Ubuntu: sudo apt-get install z3\n  • Or set COGITO_Z3_PATH environment variable"
 
-/-- Compile and solve an Smt program using Z3 -/
-def solve (smt : Smt Unit) : IO Result := do
-  let script := compile smt ++ "\n(check-sat)\n(get-model)"
-  runZ3 script
+/-- Compile and solve an Smt program using Z3, returning schema-indexed result -/
+def solve (smt : Smt Unit) : IO (Result smt.schema) := do
+  let script := compile smt
+  runZ3 smt.schema script
 
 /-- Print the compiled SMT-LIB2 script (for debugging) -/
 def printScript (smt : Smt Unit) : IO Unit := do
