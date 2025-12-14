@@ -15,6 +15,18 @@ def clearLowestBit : Smt Unit := do
   assert (result =. (x &. (x -. bv 1 8)))
   -- Check if there's any x where result has more bits set than x (should be unsat)
 
+/-- Example: Declare a 2x3 tensor of 8-bit bitvectors and constrain their sum -/
+def tensorExample : Smt Unit := do
+  -- Declare a 2x3 matrix of 8-bit bitvectors: m_0_0, m_0_1, m_0_2, m_1_0, m_1_1, m_1_2
+  -- matrix : Tensor [2, 3] (Expr (Ty.bitVec 8)) = Vect (Vect (Expr (Ty.bitVec 8)) 3) 2
+  let matrix ← declareBVTensor "m" [2, 3] 8
+  -- Access elements using bracket notation: matrix[row][col]
+  let m_0_0 := matrix[0][0]
+  let m_1_2 := matrix[1][2]
+  -- Constrain first and last elements
+  assert (m_0_0 =. bv 42 8)
+  assert (m_1_2 =. bv 99 8)
+
 def main : IO UInt32 := do
   IO.println s!"CogitoCore {CogitoCore.version}"
   IO.println ""
@@ -33,5 +45,13 @@ def main : IO UInt32 := do
   IO.println "Solving with Z3..."
   let result2 ← solve clearLowestBit
   IO.println s!"Result: {result2}"
+  IO.println ""
+
+  IO.println "=== Example 3: Tensor declaration (2x3 matrix) ==="
+  IO.println "Generated SMT-LIB2:"
+  IO.println (compile tensorExample)
+  IO.println "Solving with Z3..."
+  let result3 ← solve tensorExample
+  IO.println s!"Result: {result3}"
 
   pure 0

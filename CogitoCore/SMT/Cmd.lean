@@ -2,7 +2,8 @@
   CogitoCore - SMT-LIB BitVector Theory DSL
   Commands and Smt monad (free monad pattern)
 -/
-import CogitoCore.SMT.BitVec
+import CogitoCore.SMT.Expr
+import CogitoCore.SMT.Tensor
 
 namespace CogitoCore.SMT
 
@@ -42,5 +43,36 @@ def declareBool (name : String) : Smt (Expr Ty.bool) :=
 
 /-- Assert a boolean constraint -/
 def assert (e : Expr Ty.bool) : Smt Unit := Smt.bind (Cmd.assert e) Smt.pure
+
+-- Tensor declaration API
+
+/-- Build variable name with indices appended -/
+def indexedName (base : String) (indices : List Nat) : String :=
+  base ++ String.join (indices.map (fun i => s!"_{i}"))
+
+/-- Declare a single variable -/
+def declareVar (name : String) (ty : Ty) : Smt (Expr ty) :=
+  Smt.bind (Cmd.declareConst name ty) Smt.pure
+
+/-- Declare a tensor of variables, building the nested Vect structure -/
+def declareTensorAux (name : String) (ty : Ty) (prefix_ : List Nat) :
+    (dims : List Nat) → Smt (Tensor dims (Expr ty))
+  | [] => do
+    let varName := indexedName name prefix_
+    declareVar varName ty
+  | d :: ds => do
+    Vect.tabulateM d (fun ⟨i, _⟩ => declareTensorAux name ty (prefix_ ++ [i]) ds)
+
+/-- Declare a tensor of variables with given shape, returning Tensor dims (Expr ty) -/
+def declareTensor (name : String) (dims : List Nat) (ty : Ty) : Smt (Tensor dims (Expr ty)) :=
+  declareTensorAux name ty [] dims
+
+/-- Declare a bitvector tensor -/
+def declareBVTensor (name : String) (dims : List Nat) (n : Nat) : Smt (Tensor dims (Expr (Ty.bitVec n))) :=
+  declareTensor name dims (Ty.bitVec n)
+
+/-- Declare a boolean tensor -/
+def declareBoolTensor (name : String) (dims : List Nat) : Smt (Tensor dims (Expr Ty.bool)) :=
+  declareTensor name dims Ty.bool
 
 end CogitoCore.SMT

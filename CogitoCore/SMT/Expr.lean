@@ -29,7 +29,7 @@ inductive Expr : Ty → Type where
   | or      : Expr Ty.bool → Expr Ty.bool → Expr Ty.bool
   | not     : Expr Ty.bool → Expr Ty.bool
   | imp     : Expr Ty.bool → Expr Ty.bool → Expr Ty.bool
-  | ite     : Expr Ty.bool → Expr s → Expr s → Expr s
+  | ite : Expr Ty.bool → Expr s → Expr s → Expr s
 
   -- BitVector literals
   | bvLit   : (val : Nat) → (n : Nat) → Expr (Ty.bitVec n)
