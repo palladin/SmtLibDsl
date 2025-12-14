@@ -18,7 +18,7 @@ instance : ToString Ty where
 /-- Expressions indexed by sort, ensuring width-correctness at compile time -/
 inductive Expr : Ty → Type where
   -- Variables
-  | var     : String → (s : Ty) → Expr s
+  | var     : String → (ty : Ty) → Expr ty
 
   -- Boolean literals
   | btrue   : Expr Ty.bool

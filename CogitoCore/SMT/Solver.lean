@@ -95,7 +95,7 @@ def runZ3 (script : String) : IO Result := do
 
 /-- Compile and solve an Smt program using Z3 -/
 def solve (smt : Smt Unit) : IO Result := do
-  let script := compile smt
+  let script := compile smt ++ "\n(check-sat)\n(get-model)"
   runZ3 script
 
 /-- Print the compiled SMT-LIB2 script (for debugging) -/

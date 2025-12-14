@@ -69,8 +69,6 @@ open CogitoCore.SMT
 def findX : Smt Unit := do
   let x ← declareBV "x" 8
   assert (x +. bv 1 8 =. bv 10 8)
-  checkSat
-  getModel
 
 -- Compile to SMT-LIB2
 #eval compile findX

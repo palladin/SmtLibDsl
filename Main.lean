@@ -6,8 +6,6 @@ open CogitoCore.SMT
 def findX : Smt Unit := do
   let x ← declareBV "x" 8
   assert (x +. bv 1 8 =. bv 10 8)
-  checkSat
-  getModel
 
 /-- Example: Verify that x & (x - 1) clears the lowest set bit -/
 def clearLowestBit : Smt Unit := do
@@ -16,8 +14,6 @@ def clearLowestBit : Smt Unit := do
   -- result = x & (x - 1)
   assert (result =. (x &. (x -. bv 1 8)))
   -- Check if there's any x where result has more bits set than x (should be unsat)
-  checkSat
-  getModel
 
 def main : IO UInt32 := do
   IO.println s!"CogitoCore {CogitoCore.version}"

@@ -7,8 +7,8 @@ import CogitoCore.SMT.BitVec
 namespace CogitoCore.SMT
 
 /-- SMT-LIB commands for QF_BV theory -/
-inductive Cmd : Type → Type 1 where
-  | declareConst : String → (s : Ty) → Cmd (Expr s)
+inductive Cmd : Type → Type _ where
+  | declareConst : String → (ty : Ty) → Cmd (Expr ty)
   | assert       : Expr Ty.bool → Cmd Unit
   | checkSat     : Cmd Unit
   | getModel     : Cmd Unit
@@ -16,7 +16,7 @@ inductive Cmd : Type → Type 1 where
   | pop          : Cmd Unit
 
 /-- Free monad for sequencing SMT commands -/
-inductive Smt : Type → Type 1 where
+inductive Smt : Type → Type _ where
   | pure : α → Smt α
   | bind : Cmd α → (α → Smt β) → Smt β
 
@@ -42,17 +42,5 @@ def declareBool (name : String) : Smt (Expr Ty.bool) :=
 
 /-- Assert a boolean constraint -/
 def assert (e : Expr Ty.bool) : Smt Unit := Smt.bind (Cmd.assert e) Smt.pure
-
-/-- Check satisfiability -/
-def checkSat : Smt Unit := Smt.bind Cmd.checkSat Smt.pure
-
-/-- Get the model (if sat) -/
-def getModel : Smt Unit := Smt.bind Cmd.getModel Smt.pure
-
-/-- Push a context frame -/
-def push : Smt Unit := Smt.bind Cmd.push Smt.pure
-
-/-- Pop a context frame -/
-def pop : Smt Unit := Smt.bind Cmd.pop Smt.pure
 
 end CogitoCore.SMT
