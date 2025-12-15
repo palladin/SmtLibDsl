@@ -18,3 +18,6 @@ lean_exe «cogito-core» where
 
 lean_exe «cogito-test» where
   root := `Tests.SMT
+
+lean_exe «sudoku» where
+  root := `Examples.Sudoku

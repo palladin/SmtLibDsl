@@ -21,8 +21,8 @@ def tensorExample : Smt Unit := do
   -- matrix : Tensor [2, 3] (Expr (Ty.bitVec 8)) = Vect (Vect (Expr (Ty.bitVec 8)) 3) 2
   let matrix ← declareBVTensor "m" [2, 3] 8
   -- Access elements using bracket notation: matrix[row][col]
-  let m_0_0 := matrix[0][0]
-  let m_1_2 := matrix[1][2]
+  let m_0_0 : Expr (Ty.bitVec 8) := matrix[0][0]
+  let m_1_2 : Expr (Ty.bitVec 8) := matrix[1][2]
   -- Constrain first and last elements
   assert (m_0_0 =. bv 42 8)
   assert (m_1_2 =. bv 99 8)
