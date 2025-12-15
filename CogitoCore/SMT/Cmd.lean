@@ -60,14 +60,14 @@ def indexedName (base : String) (indices : List Nat) : String :=
 def declareVar (name : String) (ty : Ty) : Smt (Expr ty) :=
   Smt.bind (Cmd.declareConst name ty) Smt.pure
 
-/-- Declare a tensor of variables, building the nested Vect structure -/
+/-- Declare a tensor of variables, building the nested Vector structure -/
 def declareTensorAux (name : String) (ty : Ty) (prefix_ : List Nat) :
     (dims : List Nat) → Smt (Tensor dims (Expr ty))
   | [] => do
     let varName := indexedName name prefix_
     declareVar varName ty
   | d :: ds => do
-    Vect.tabulateM d (fun ⟨i, _⟩ => declareTensorAux name ty (prefix_ ++ [i]) ds)
+    Vector.tabulateM d (fun ⟨i, _⟩ => declareTensorAux name ty (prefix_ ++ [i]) ds)
 
 /-- Declare a tensor of variables with given shape, returning Tensor dims (Expr ty) -/
 def declareTensor (name : String) (dims : List Nat) (ty : Ty) : Smt (Tensor dims (Expr ty)) :=

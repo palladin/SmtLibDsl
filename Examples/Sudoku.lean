@@ -19,24 +19,23 @@ macro "sudoku!" "[" rows:term,* "]" : term => do
   let rowTerms := rows.getElems
   if rowTerms.size != 9 then
     Lean.Macro.throwError "Expected exactly 9 rows"
-  let rec buildRow (elems : Array Lean.Term) (i : Nat) : Lean.MacroM Lean.Term := do
-    if i >= 9 then `(Vect.nil)
-    else
-      let rest ← buildRow elems (i + 1)
-      `(Vect.cons $(elems[i]!) $rest)
-  let rec buildGrid (i : Nat) : Lean.MacroM Lean.Term := do
-    if i >= 9 then `(Vect.nil)
+  let rec buildRow (elems : Array Lean.Term) : Lean.MacroM Lean.Term := do
+    let arr ← `(#[$elems,*])
+    `(⟨$arr, rfl⟩)
+  let rec buildGrid (i : Nat) : Lean.MacroM (Array Lean.Term) := do
+    if i >= 9 then return #[]
     else
       match rowTerms[i]! with
       | `([$elems,*]) =>
         let rowElems := elems.getElems
         if rowElems.size != 9 then
           Lean.Macro.throwError s!"Row {i} must have exactly 9 elements"
-        let row ← buildRow rowElems 0
+        let row ← buildRow rowElems
         let rest ← buildGrid (i + 1)
-        `(Vect.cons $row $rest)
+        return #[row] ++ rest
       | _ => Lean.Macro.throwError "Expected a list literal for each row"
-  buildGrid 0
+  let rows ← buildGrid 0
+  `(⟨#[$rows,*], rfl⟩)
 
 /-- A Sudoku puzzle: 9x9 grid where 0 represents an empty cell -/
 def puzzle : Tensor2D 9 9 Nat := sudoku![
@@ -55,47 +54,44 @@ def puzzle : Tensor2D 9 9 Nat := sudoku![
 
 /-! ## Grid Access using Tensor2D -/
 
-/-- Get a 3×3 box as a Vect 9 -/
-def getBox (grid : Tensor2D 9 9 α) (boxRow boxCol : Fin 3) : Vect α 9 :=
+/-- Get a 3×3 box as a Vector 9 -/
+def getBox (grid : Tensor2D 9 9 α) (boxRow boxCol : Fin 3) : Vector α 9 :=
   let r0 := boxRow.val * 3
   let c0 := boxCol.val * 3
-  Vect.tabulate 9 fun i =>
+  Vector.ofFn fun i =>
     grid[r0 + i.val / 3, c0 + i.val % 3]
 
 /-! ## SMT Constraints using Vect -/
 
-/-- Assert all constraints from a Vect -/
-def assertAllV (constraints : Vect (Expr Ty.bool) n) : Smt Unit :=
+/-- Assert all constraints from a Vector -/
+def assertAllV (constraints : Vector (Expr Ty.bool) n) : Smt Unit :=
   constraints.foldl (fun acc c => acc >>= fun _ => assert c) (pure ())
 
 /-- Range constraints: all cells must be in 1-9 -/
-def rangeConstraints (cells : Vect (Expr (Ty.bitVec 4)) 9) : Vect (Expr Ty.bool) 18 :=
-  Vect.tabulate 18 fun i =>
+def rangeConstraints (cells : Vector (Expr (Ty.bitVec 4)) 9) : Vector (Expr Ty.bool) 18 :=
+  Vector.ofFn fun i =>
     let cellIdx : Fin 9 := ⟨i.val / 2, by omega⟩
     let cell := cells.get cellIdx
     if i.val % 2 == 0 then bv 1 4 ≤ᵤ cell else cell ≤ᵤ bv 9 4
 
-/-- Macro to generate all pairs (i,j) where 0 ≤ i < j < n as a Vect -/
+/-- Macro to generate all pairs (i,j) where 0 ≤ i < j < n as a Vector -/
 macro "pairs!" n:num : term => do
   let nVal := n.getNat
   let count := nVal * (nVal - 1) / 2
-  let mut result ← `(Vect.nil)
-  -- Build in reverse order so result is in (0,1), (0,2), ... order
-  for i' in [0:nVal] do
-    let i := nVal - 1 - i'
-    for j' in [i+1:nVal] do
-      let j := nVal - 1 - (j' - i - 1)
+  let mut pairs : Array Lean.Term := #[]
+  for i in [0:nVal] do
+    for j in [i+1:nVal] do
       let iTerm := Lean.Syntax.mkNumLit (toString i)
       let jTerm := Lean.Syntax.mkNumLit (toString j)
-      result ← `(Vect.cons (⟨$iTerm, by decide⟩, ⟨$jTerm, by decide⟩) $result)
+      pairs := pairs.push (← `((⟨$iTerm, by decide⟩, ⟨$jTerm, by decide⟩)))
   let countTerm := Lean.Syntax.mkNumLit (toString count)
-  `(($result : Vect (Fin $n × Fin $n) $countTerm))
+  `((⟨#[$pairs,*], rfl⟩ : Vector (Fin $n × Fin $n) $countTerm))
 
 /-- All 36 pairs (i,j) where 0 ≤ i < j < 9 -/
-def pairs9 : Vect (Fin 9 × Fin 9) 36 := pairs! 9
+def pairs9 : Vector (Fin 9 × Fin 9) 36 := pairs! 9
 
 /-- Generate distinct constraints for 9 cells (36 pairs) -/
-def distinct9 (cells : Vect (Expr (Ty.bitVec 4)) 9) : Vect (Expr Ty.bool) 36 :=
+def distinct9 (cells : Vector (Expr (Ty.bitVec 4)) 9) : Vector (Expr Ty.bool) 36 :=
   pairs9.map fun (i, j) => ¬. (cells.get i =. cells.get j)
 
 abbrev Grid := Tensor2D 9 9 (Expr (Ty.bitVec 4))
@@ -110,13 +106,13 @@ def rowConstraints (vars : Grid) : Smt Unit :=
 
 /-- Column uniqueness constraints -/
 def colConstraints (vars : Grid) : Smt Unit :=
-  Vect.finRange 9 |>.foldl (fun acc c => acc >>= fun _ =>
+  Vector.finRange 9 |>.foldl (fun acc c => acc >>= fun _ =>
     assertAllV (distinct9 (Tensor2D.getCol vars c))) (pure ())
 
 /-- Box uniqueness constraints -/
 def boxConstraints (vars : Grid) : Smt Unit :=
-  Vect.finRange 3 |>.foldl (fun acc br =>
-    Vect.finRange 3 |>.foldl (fun acc' bc =>
+  Vector.finRange 3 |>.foldl (fun acc br =>
+    Vector.finRange 3 |>.foldl (fun acc' bc =>
       acc' >>= fun _ => assertAllV (distinct9 (getBox vars br bc))) acc) (pure ())
 
 /-- Fixed cell constraints from puzzle input -/
@@ -140,7 +136,7 @@ def sudoku : Smt Unit := do
 /-! ## Display Helpers -/
 
 /-- Build a display row string -/
-def buildRowStr (row : Vect String 9) : String :=
+def buildRowStr (row : Vector String 9) : String :=
   s!"│ {row.getN 0} {row.getN 1} {row.getN 2} │ {row.getN 3} {row.getN 4} {row.getN 5} │ {row.getN 6} {row.getN 7} {row.getN 8} │"
 
 /-- Display a 9×9 grid with box separators -/
@@ -178,7 +174,7 @@ open Sudoku in
 def main : IO UInt32 := do
   IO.println "=== Sudoku SMT Solver ==="
   IO.println "(Ported from Idris idris-snippets/SudokuSMT.idr)"
-  IO.println "(Using only Vect operations)"
+  IO.println "(Using Vector from standard library)"
   IO.println ""
 
   displayPuzzle puzzle
