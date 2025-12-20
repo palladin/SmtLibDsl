@@ -21,3 +21,6 @@ lean_exe «cogito-test» where
 
 lean_exe «sudoku» where
   root := `Examples.Sudoku
+
+lean_exe «eternity2» where
+  root := `Examples.Eternity2
