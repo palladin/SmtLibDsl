@@ -470,18 +470,11 @@ def solvePuzzle (puzzle : Puzzle) (dumpSmt : Bool := false) : IO UInt32 := do
   IO.println s!"Variables: {puzzle.rows * puzzle.cols} piece positions + {puzzle.rows * puzzle.cols * 4} colors"
   IO.println ""
 
-  if dumpSmt then
-    IO.println s!"{bold}SMT-LIB2 Script:{resetColor}"
-    IO.println (String.mk (List.replicate 40 '─'))
-    IO.println (compile solver)
-    IO.println (String.mk (List.replicate 40 '─'))
-    IO.println ""
-
   IO.println "Solving with Z3..."
   IO.println "(This may take a while for larger puzzles...)"
   IO.println ""
 
-  let result ← solve solver
+  let result ← solve solver dumpSmt
   match result with
   | .sat model =>
     IO.println s!"{bold}SAT - Solution found!{resetColor}"

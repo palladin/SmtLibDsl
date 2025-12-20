@@ -178,15 +178,8 @@ def main (args : List String) : IO UInt32 := do
 
   let problem := nqueens N
 
-  if dumpSmt then
-    IO.println s!"{bold}SMT-LIB2 Script:{resetColor}"
-    IO.println (String.mk (List.replicate 40 '─'))
-    IO.println (compile problem)
-    IO.println (String.mk (List.replicate 40 '─'))
-    IO.println ""
-
   IO.println "Solving with Z3..."
-  let result ← solve problem
+  let result ← solve problem dumpSmt
 
   match result with
   | .sat model =>

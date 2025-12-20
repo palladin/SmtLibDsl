@@ -112,8 +112,14 @@ def runZ3 (vars : VarSchema) (script : String) : IO (Result vars) := do
     return .unknown s!"Failed to run Z3: {e}\n\nInstall Z3:\n  • macOS:  brew install z3\n  • Ubuntu: sudo apt-get install z3\n  • Or set COGITO_Z3_PATH environment variable"
 
 /-- Compile and solve an Smt program using Z3, returning schema-indexed result -/
-def solve (smt : Smt Unit) : IO (Result smt.schema) := do
+def solve (smt : Smt Unit) (dumpSmt : Bool := false) : IO (Result smt.schema) := do
   let script := compile smt
+  if dumpSmt then
+    IO.println "SMT-LIB2 Script:"
+    IO.println (String.mk (List.replicate 40 '─'))
+    IO.println script
+    IO.println (String.mk (List.replicate 40 '─'))
+    IO.println ""
   runZ3 smt.schema script
 
 /-- Print the compiled SMT-LIB2 script (for debugging) -/

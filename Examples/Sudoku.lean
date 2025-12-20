@@ -181,15 +181,8 @@ def main (args : List String) : IO UInt32 := do
   displayPuzzle puzzle
   IO.println ""
 
-  if dumpSmt then
-    IO.println "SMT-LIB2 Script:"
-    IO.println (String.mk (List.replicate 40 '─'))
-    IO.println (compile sudoku)
-    IO.println (String.mk (List.replicate 40 '─'))
-    IO.println ""
-
   IO.println "Solving with Z3..."
-  let result ← solve sudoku
+  let result ← solve sudoku dumpSmt
   match result with
   | .sat model =>
     IO.println "SAT - Solution found!"
