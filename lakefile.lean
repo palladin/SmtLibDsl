@@ -30,3 +30,6 @@ lean_exe «nqueens» where
 
 lean_exe «life» where
   root := `Examples.Life
+
+lean_exe «minesweeper» where
+  root := `Examples.Minesweeper

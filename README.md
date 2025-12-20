@@ -111,7 +111,8 @@ Examples/
 ├── Sudoku.lean       -- 9×9 Sudoku solver
 ├── NQueens.lean      -- N-Queens puzzle solver
 ├── Eternity2.lean    -- Eternity II edge-matching puzzle
-└── Life.lean         -- Conway's Game of Life verification
+├── Life.lean         -- Conway's Game of Life verification
+└── Minesweeper.lean  -- Minesweeper auto-solver
 Main.lean             -- CLI entry point
 Tests/
 └── SMT.lean          -- Test suite
@@ -141,6 +142,12 @@ lake exe eternity2
 Verifies the famous "LIFE" pattern from Knuth's TAOCP using SMT. Given an initial pattern, Z3 confirms it evolves to spell "LIFE" after 3 steps of Conway's Game of Life rules.
 ```bash
 lake exe life
+```
+
+### Minesweeper Solver
+Automatically solves Minesweeper puzzles by using SMT to deduce which cells are definitely safe or definitely mines. Iteratively reveals safe cells until the entire grid is solved.
+```bash
+lake exe minesweeper
 ```
 
 ## License
