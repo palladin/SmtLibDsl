@@ -108,6 +108,7 @@ CogitoCore/
 │   └── Tensor.lean   -- Multi-dimensional tensor support
 ├── SMT.lean          -- Re-exports SMT modules
 Examples/
+├── Countdown.lean    -- Countdown numbers game solver
 ├── Sudoku.lean       -- 9×9 Sudoku solver
 ├── NQueens.lean      -- N-Queens puzzle solver
 ├── Eternity2.lean    -- Eternity II edge-matching puzzle
@@ -148,6 +149,12 @@ lake exe life
 Automatically solves Minesweeper puzzles by using SMT to deduce which cells are definitely safe or definitely mines. Iteratively reveals safe cells until the entire grid is solved.
 ```bash
 lake exe minesweeper
+```
+
+### Countdown Numbers Game
+Solves the classic Countdown numbers game puzzle. Given a set of numbers and a target, finds an arithmetic expression using +, -, *, / that evaluates to the target. Uses RPN (Reverse Polish Notation) stack-based evaluation with SMT constraints.
+```bash
+lake exe countdown
 ```
 
 ## License

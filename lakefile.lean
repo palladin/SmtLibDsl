@@ -33,3 +33,6 @@ lean_exe «life» where
 
 lean_exe «minesweeper» where
   root := `Examples.Minesweeper
+
+lean_exe «countdown» where
+  root := `Examples.Countdown

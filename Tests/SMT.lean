@@ -91,7 +91,7 @@ def compileTests : TestSeq :=
       let prog : Smt Unit := do
         let x ← declareBV "x" 8
         assert (x =. bv 5 8)
-      compile prog = "(set-logic QF_BV)\n(declare-const x (_ BitVec 8))\n(assert (= x (_ bv5 8)))\n(check-sat)\n(get-model)"
+      compile prog = "(set-logic QF_ABV)\n(declare-const x (_ BitVec 8))\n(assert (= x (_ bv5 8)))\n(check-sat)\n(get-model)"
     )
 
 -- All tests

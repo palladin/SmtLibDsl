@@ -65,15 +65,19 @@ def compileExpr : Expr ty → String
   | .bvSAddO l r => s!"(bvsaddo {compileExpr l} {compileExpr r})"
   | .bvUMulO l r => s!"(bvumulo {compileExpr l} {compileExpr r})"
   | .bvSMulO l r => s!"(bvsmulo {compileExpr l} {compileExpr r})"
+  -- Array operations
+  | .mkArray idxWidth elem v => s!"((as const (Array (_ BitVec {idxWidth}) {elem})) {compileExpr v})"
+  | .select arr i => s!"(select {compileExpr arr} {compileExpr i})"
+  | .store arr i v => s!"(store {compileExpr arr} {compileExpr i} {compileExpr v})"
 
 /-- Compile a command, returning the result value and SMT-LIB2 string -/
 def compileCmd : Cmd α → (α × String)
   | .declareConst name s => (.var name s, s!"(declare-const {name} {s})")
   | .assert e => ((), s!"(assert {compileExpr e})")
 
-/-- Compile an Smt program to SMT-LIB2 string (with QF_BV logic) -/
+/-- Compile an Smt program to SMT-LIB2 string (with QF_ABV logic for arrays + bitvectors) -/
 partial def compile (smt : Smt Unit) : String :=
-  "(set-logic QF_BV)\n" ++ compileBody smt ++ "\n(check-sat)\n(get-model)"
+  "(set-logic QF_ABV)\n" ++ compileBody smt ++ "\n(check-sat)\n(get-model)"
 where
   compileBody : Smt Unit → String
     | .pure () => ""

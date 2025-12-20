@@ -81,4 +81,8 @@ def declareBVTensor (name : String) (dims : List Nat) (n : Nat) : Smt (Tensor di
 def declareBoolTensor (name : String) (dims : List Nat) : Smt (Tensor dims (Expr Ty.bool)) :=
   declareTensor name dims Ty.bool
 
+/-- Declare an array variable with BitVec index and element type -/
+def declareArray (name : String) (idxWidth : Nat) (elem : ElemTy) : Smt (Expr (Ty.array idxWidth elem)) :=
+  Smt.bind (Cmd.declareConst name (Ty.array idxWidth elem)) Smt.pure
+
 end CogitoCore.SMT

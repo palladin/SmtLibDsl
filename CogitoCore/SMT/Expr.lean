@@ -4,21 +4,51 @@
 -/
 namespace CogitoCore.SMT
 
-/-- SMT-LIB sorts for QF_BV theory -/
-inductive Ty where
+/-- Element types for arrays (base types only, no nested arrays) -/
+inductive ElemTy where
   | bool
   | bitVec (n : Nat)
 deriving Repr, DecidableEq
 
-instance : ToString Ty where
-  toString
+/-- Convert ElemTy to SMT-LIB2 syntax string -/
+def ElemTy.toSmtLib : ElemTy → String
+  | ElemTy.bool => "Bool"
+  | ElemTy.bitVec n => s!"(_ BitVec {n})"
+
+instance : ToString ElemTy where
+  toString := ElemTy.toSmtLib
+
+/-- SMT-LIB sorts for QF_ABV theory (arrays + bitvectors) -/
+inductive Ty where
+  | bool
+  | bitVec (n : Nat)
+  | array (idxWidth : Nat) (elem : ElemTy)  -- Array (BitVec idxWidth) elem
+deriving Repr, DecidableEq
+
+/-- Convert ElemTy to Ty -/
+def ElemTy.toTy : ElemTy → Ty
+  | ElemTy.bool => Ty.bool
+  | ElemTy.bitVec n => Ty.bitVec n
+
+/-- Convert Ty to SMT-LIB2 syntax string -/
+def Ty.toSmtLib : Ty → String
   | Ty.bool => "Bool"
   | Ty.bitVec n => s!"(_ BitVec {n})"
+  | Ty.array idxWidth elem => s!"(Array (_ BitVec {idxWidth}) {elem.toSmtLib})"
+
+instance : ToString Ty where
+  toString := Ty.toSmtLib
 
 /-- Map SMT types to corresponding Lean types -/
 def Ty.LeanType : Ty → Type
   | Ty.bool => Bool
   | Ty.bitVec n => BitVec n
+  | Ty.array _ _ => Unit  -- Arrays don't have a simple Lean representation
+
+/-- Map ElemTy to corresponding Lean types -/
+def ElemTy.LeanType : ElemTy → Type
+  | ElemTy.bool => Bool
+  | ElemTy.bitVec n => BitVec n
 
 /-- Parse an SMT-LIB boolean value to Lean Bool -/
 def parseBool (s : String) : Option Bool :=
@@ -69,6 +99,7 @@ def Ty.parse (ty : Ty) (s : String) : Option ty.LeanType :=
   match ty with
   | Ty.bool => parseBool s
   | Ty.bitVec n => parseBitVec s n
+  | Ty.array _ _ => some ()  -- Arrays can't be easily parsed from SMT output
 
 /-- Expressions indexed by sort, ensuring width-correctness at compile time -/
 inductive Expr : Ty → Type where
@@ -142,6 +173,11 @@ inductive Expr : Ty → Type where
   | bvUMulO : Expr (Ty.bitVec n) → Expr (Ty.bitVec n) → Expr Ty.bool
   | bvSMulO : Expr (Ty.bitVec n) → Expr (Ty.bitVec n) → Expr Ty.bool
 
+  -- Array operations
+  | mkArray : (idxWidth : Nat) → (elem : ElemTy) → Expr elem.toTy → Expr (Ty.array idxWidth elem)
+  | select  : Expr (Ty.array idxWidth elem) → Expr (Ty.bitVec idxWidth) → Expr elem.toTy
+  | store   : Expr (Ty.array idxWidth elem) → Expr (Ty.bitVec idxWidth) → Expr elem.toTy → Expr (Ty.array idxWidth elem)
+
 -- Smart constructors
 
 /-- Create a bitvector literal with value `val` and width `n` -/
@@ -152,6 +188,18 @@ def btrue : Expr Ty.bool := Expr.btrue
 
 /-- Boolean false -/
 def bfalse : Expr Ty.bool := Expr.bfalse
+
+/-- Create a constant array where all indices map to the same value -/
+def constArray (idxWidth : Nat) (elem : ElemTy) (v : Expr elem.toTy) : Expr (Ty.array idxWidth elem) :=
+  Expr.mkArray idxWidth elem v
+
+/-- Read from an array at index -/
+def selectArr (arr : Expr (Ty.array idxWidth elem)) (i : Expr (Ty.bitVec idxWidth)) : Expr elem.toTy :=
+  Expr.select arr i
+
+/-- Write to an array at index, returning new array -/
+def storeArr (arr : Expr (Ty.array idxWidth elem)) (i : Expr (Ty.bitVec idxWidth)) (v : Expr elem.toTy) : Expr (Ty.array idxWidth elem) :=
+  Expr.store arr i v
 
 -- Notation (scoped to SMT namespace)
 
