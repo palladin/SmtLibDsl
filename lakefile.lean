@@ -27,3 +27,6 @@ lean_exe «eternity2» where
 
 lean_exe «nqueens» where
   root := `Examples.NQueens
+
+lean_exe «life» where
+  root := `Examples.Life

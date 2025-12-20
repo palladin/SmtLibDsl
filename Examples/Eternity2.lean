@@ -1,5 +1,6 @@
 /-
-  CogitoCore - Eternity II Puzzle SMT Solver (Generalized)
+  CogitoCore - Eternity II Puzzle SMT Solver
+  Ported from: https://github.com/palladin/idris-snippets/blob/master/src/Eternity2SMT.idr
 
   Eternity II is an edge-matching puzzle where:
   - Pieces are placed on a grid (rows × cols)

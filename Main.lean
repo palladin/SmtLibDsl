@@ -11,6 +11,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "  lake exe sudoku      - 9×9 Sudoku puzzle solver"
     IO.println "  lake exe nqueens     - N-Queens puzzle solver (8×8)"
     IO.println "  lake exe eternity2   - Eternity II edge-matching puzzle"
+    IO.println "  lake exe life        - Conway's Game of Life (Knuth's TAOCP)"
     IO.println ""
     IO.println "Build and run:"
     IO.println "  lake build && lake exe <example>"
@@ -24,6 +25,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "Run: lake exe nqueens"
   | "eternity2" =>
     IO.println "Run: lake exe eternity2"
+  | "life" =>
+    IO.println "Run: lake exe life"
   | _ =>
     IO.eprintln s!"Unknown example: {cmd}"
     IO.eprintln "Run 'lake exe cogito-core' for available examples."

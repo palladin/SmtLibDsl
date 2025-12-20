@@ -110,7 +110,8 @@ CogitoCore/
 Examples/
 ├── Sudoku.lean       -- 9×9 Sudoku solver
 ├── NQueens.lean      -- N-Queens puzzle solver
-└── Eternity2.lean    -- Eternity II edge-matching puzzle
+├── Eternity2.lean    -- Eternity II edge-matching puzzle
+└── Life.lean         -- Conway's Game of Life verification
 Main.lean             -- CLI entry point
 Tests/
 └── SMT.lean          -- Test suite
@@ -134,6 +135,12 @@ lake exe nqueens
 Solves edge-matching puzzles where pieces must be placed so adjacent edges match.
 ```bash
 lake exe eternity2
+```
+
+### Conway's Game of Life
+Verifies the famous "LIFE" pattern from Knuth's TAOCP using SMT. Given an initial pattern, Z3 confirms it evolves to spell "LIFE" after 3 steps of Conway's Game of Life rules.
+```bash
+lake exe life
 ```
 
 ## License

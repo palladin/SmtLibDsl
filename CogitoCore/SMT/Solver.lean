@@ -93,26 +93,37 @@ def checkZ3 : IO (Except String String) := do
     return .error s!"Z3 not found at '{z3Path}'.\n\nInstall Z3:\n  • macOS:  brew install z3\n  • Ubuntu: sudo apt-get install z3\n  • Or set COGITO_Z3_PATH environment variable"
 
 /-- Run Z3 on an SMT-LIB2 script string -/
-def runZ3 (vars : VarSchema) (script : String) : IO (Result vars) := do
+def runZ3 (vars : VarSchema) (script : String) (timeout : Option Nat := none) : IO (Result vars) := do
   let z3Path ← getZ3Path
   let tempFile := "/tmp/cogito_query.smt2"
   IO.FS.writeFile tempFile script
   try
+    let timeoutArgs := match timeout with
+      | some ms => #[s!"-t:{ms}"]
+      | none => #[]
     let output ← IO.Process.output {
       cmd := z3Path
-      args := #["-smt2", tempFile]
+      args := timeoutArgs ++ #["-smt2", tempFile]
     }
     if output.exitCode != 0 && output.exitCode != 1 then
       return .unknown s!"Z3 error: {output.stderr}"
     match parseResultRaw output.stdout with
     | .inl model => return .sat ⟨model⟩
     | .inr "unsat" => return .unsat
-    | .inr reason => return .unknown reason
+    | .inr reason =>
+      -- Detect timeout: Z3 returns "unknown" and model is not available
+      if (reason.splitOn "model is not available").length > 1 then
+        match timeout with
+        | some ms => return .unknown s!"timeout ({ms}ms)"
+        | none => return .unknown "timeout"
+      else
+        return .unknown reason
   catch e =>
     return .unknown s!"Failed to run Z3: {e}\n\nInstall Z3:\n  • macOS:  brew install z3\n  • Ubuntu: sudo apt-get install z3\n  • Or set COGITO_Z3_PATH environment variable"
 
-/-- Compile and solve an Smt program using Z3, returning schema-indexed result -/
-def solve (smt : Smt Unit) (dumpSmt : Bool := false) : IO (Result smt.schema) := do
+/-- Compile and solve an Smt program using Z3, returning schema-indexed result
+    timeout: Optional timeout in milliseconds -/
+def solve (smt : Smt Unit) (dumpSmt : Bool := false) (timeout : Option Nat := none) : IO (Result smt.schema) := do
   let script := compile smt
   if dumpSmt then
     IO.println "SMT-LIB2 Script:"
@@ -120,7 +131,7 @@ def solve (smt : Smt Unit) (dumpSmt : Bool := false) : IO (Result smt.schema) :=
     IO.println script
     IO.println (String.mk (List.replicate 40 '─'))
     IO.println ""
-  runZ3 smt.schema script
+  runZ3 smt.schema script timeout
 
 /-- Print the compiled SMT-LIB2 script (for debugging) -/
 def printScript (smt : Smt Unit) : IO Unit := do
