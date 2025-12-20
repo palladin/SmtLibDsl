@@ -171,14 +171,22 @@ def displaySolution (model : Model schema) : IO Unit := do
 end Sudoku
 
 open Sudoku in
-def main : IO UInt32 := do
+def main (args : List String) : IO UInt32 := do
+  let dumpSmt := args.contains "--dump-smt" || args.contains "-d"
+
   IO.println "=== Sudoku SMT Solver ==="
   IO.println "(Ported from Idris idris-snippets/SudokuSMT.idr)"
-  IO.println "(Using Vector from standard library)"
   IO.println ""
 
   displayPuzzle puzzle
   IO.println ""
+
+  if dumpSmt then
+    IO.println "SMT-LIB2 Script:"
+    IO.println (String.mk (List.replicate 40 '─'))
+    IO.println (compile sudoku)
+    IO.println (String.mk (List.replicate 40 '─'))
+    IO.println ""
 
   IO.println "Solving with Z3..."
   let result ← solve sudoku

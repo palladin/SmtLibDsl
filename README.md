@@ -101,14 +101,39 @@ def findX : Smt Unit := do
 ```
 CogitoCore/
 ├── SMT/
-│   ├── BitVec.lean   -- Type-indexed bitvector expressions
 │   ├── Cmd.lean      -- SMT commands & Smt monad
 │   ├── Compile.lean  -- Compile to SMT-LIB2
-│   └── Solver.lean   -- Z3 integration
+│   ├── Expr.lean     -- Type-indexed SMT expressions
+│   ├── Solver.lean   -- Z3 integration
+│   └── Tensor.lean   -- Multi-dimensional tensor support
 ├── SMT.lean          -- Re-exports SMT modules
-Main.lean             -- Example programs
+Examples/
+├── Sudoku.lean       -- 9×9 Sudoku solver
+├── NQueens.lean      -- N-Queens puzzle solver
+└── Eternity2.lean    -- Eternity II edge-matching puzzle
+Main.lean             -- CLI entry point
 Tests/
 └── SMT.lean          -- Test suite
+```
+
+## Examples
+
+### Sudoku Solver
+Solves a 9×9 Sudoku puzzle using bitvector constraints.
+```bash
+lake exe sudoku
+```
+
+### N-Queens Puzzle
+Places N queens on an N×N chessboard such that no two queens attack each other.
+```bash
+lake exe nqueens
+```
+
+### Eternity II Puzzle
+Solves edge-matching puzzles where pieces must be placed so adjacent edges match.
+```bash
+lake exe eternity2
 ```
 
 ## License

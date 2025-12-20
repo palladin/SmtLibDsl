@@ -1,16 +1,15 @@
 /-
-  CogitoCore - Eternity II Puzzle SMT Solver Example
-  Ported from: https://github.com/palladin/idris-snippets/blob/master/src/Eternity2SMT.idr
+  CogitoCore - Eternity II Puzzle SMT Solver (Generalized)
 
   Eternity II is an edge-matching puzzle where:
-  - Pieces are placed on a grid
+  - Pieces are placed on a grid (rows × cols)
   - Each piece has 4 colored edges (up, right, down, left)
   - Adjacent edges must match colors
   - Border edges must be 'X' (gray)
   - Each piece can be rotated 0°, 90°, 180°, or 270°
 
-  This implementation uses a 4×4 simplified version.
-  Uses 8-bit bitvectors for piece indices and 5-bit for colors.
+  Supports various puzzle sizes:
+  - 4×4 (16 pieces) - Demo/Test
 -/
 import CogitoCore
 
@@ -20,8 +19,8 @@ namespace Eternity2
 
 /-! ## Configuration -/
 
-/-- Bit size for piece indices (0-15 for 16 pieces) -/
-abbrev BitSize : Nat := 8
+/-- Bit size for piece indices -/
+abbrev BitSize : Nat := 16
 
 /-- Bit size for colors (A-Z = 0-25, needs 5 bits) -/
 abbrev ColorBitSize : Nat := 5
@@ -34,7 +33,7 @@ structure Piece where
   right : Char
   down : Char
   left : Char
-deriving Repr
+deriving Repr, BEq
 
 /-- SMT variables representing the 4 colors of a piece at a grid position -/
 structure PieceColors where
@@ -45,23 +44,41 @@ structure PieceColors where
 
 /-! ## Puzzle Definition -/
 
-/-- The puzzle pieces: 16 pieces for a 4×4 grid.
-    Each piece is represented as [Up, Right, Down, Left] colors.
-    'X' represents the border color (gray). -/
-def puzzle : Vector (Vector Char 4) 16 := ⟨#[
-  -- Row 0 (corners and edges)
-  ⟨#['Y', 'X', 'X', 'B'], rfl⟩, ⟨#['Y', 'B', 'X', 'X'], rfl⟩,
-  ⟨#['X', 'B', 'B', 'X'], rfl⟩, ⟨#['X', 'Y', 'Y', 'X'], rfl⟩,
-  -- Row 1
-  ⟨#['U', 'U', 'U', 'P'], rfl⟩, ⟨#['P', 'U', 'P', 'P'], rfl⟩,
-  ⟨#['U', 'U', 'P', 'P'], rfl⟩, ⟨#['U', 'U', 'P', 'P'], rfl⟩,
-  -- Row 2
-  ⟨#['Y', 'X', 'Y', 'P'], rfl⟩, ⟨#['B', 'X', 'B', 'P'], rfl⟩,
-  ⟨#['Y', 'X', 'B', 'P'], rfl⟩, ⟨#['B', 'X', 'Y', 'P'], rfl⟩,
-  -- Row 3
-  ⟨#['Y', 'X', 'Y', 'U'], rfl⟩, ⟨#['B', 'X', 'B', 'U'], rfl⟩,
-  ⟨#['B', 'X', 'Y', 'U'], rfl⟩, ⟨#['Y', 'X', 'B', 'U'], rfl⟩
-], rfl⟩
+/-- A puzzle instance with its dimensions and pieces -/
+structure Puzzle where
+  name : String
+  rows : Nat
+  cols : Nat
+  pieces : List (List Char)  -- Each piece is [Up, Right, Down, Left]
+
+/-- Convert a list of 4 chars to a Piece -/
+def listToPiece (cs : List Char) : Piece :=
+  match cs with
+  | [u, r, d, l] => { up := u, right := r, down := d, left := l }
+  | _ => { up := 'X', right := 'X', down := 'X', left := 'X' }
+
+/-! ## Sample Puzzles -/
+
+/-- Demo 4×4 puzzle (16 pieces) -/
+def puzzle4x4 : Puzzle := {
+  name := "Demo 4×4"
+  rows := 4
+  cols := 4
+  pieces := [
+    -- Row 0 (corners and edges)
+    ['Y', 'X', 'X', 'B'], ['Y', 'B', 'X', 'X'],
+    ['X', 'B', 'B', 'X'], ['X', 'Y', 'Y', 'X'],
+    -- Row 1
+    ['U', 'U', 'U', 'P'], ['P', 'U', 'P', 'P'],
+    ['U', 'U', 'P', 'P'], ['U', 'U', 'P', 'P'],
+    -- Row 2
+    ['Y', 'X', 'Y', 'P'], ['B', 'X', 'B', 'P'],
+    ['Y', 'X', 'B', 'P'], ['B', 'X', 'Y', 'P'],
+    -- Row 3
+    ['Y', 'X', 'Y', 'U'], ['B', 'X', 'B', 'U'],
+    ['B', 'X', 'Y', 'U'], ['Y', 'X', 'B', 'U']
+  ]
+}
 
 /-! ## Color Encoding -/
 
@@ -76,35 +93,24 @@ def borderColor : Nat := colorInt 'X'
 
 /-! ## Piece Rotations -/
 
-/-- Rotate a vector left by 1 position: [a,b,c,d] -> [b,c,d,a] -/
-def rotateLeft (v : Vector α 4) : Vector α 4 :=
-  ⟨#[v.get ⟨1, by omega⟩, v.get ⟨2, by omega⟩, v.get ⟨3, by omega⟩, v.get ⟨0, by omega⟩], rfl⟩
-
-/-- Convert a color vector [up, right, down, left] to a Piece -/
-def toPiece (v : Vector Char 4) : Piece :=
-  { up := v.get ⟨0, by omega⟩
-  , right := v.get ⟨1, by omega⟩
-  , down := v.get ⟨2, by omega⟩
-  , left := v.get ⟨3, by omega⟩ }
+/-- Rotate a piece 90° clockwise: up→right, right→down, down→left, left→up -/
+def rotatePiece (p : Piece) : Piece :=
+  { up := p.left, right := p.up, down := p.right, left := p.down }
 
 /-- Generate all 4 rotations of a piece -/
-def rotations (p : Vector Char 4) : Vector Piece 4 :=
+def rotations (p : Piece) : List Piece :=
   let p0 := p
-  let p1 := rotateLeft p0
-  let p2 := rotateLeft p1
-  let p3 := rotateLeft p2
-  ⟨#[toPiece p0, toPiece p1, toPiece p2, toPiece p3], rfl⟩
+  let p1 := rotatePiece p0
+  let p2 := rotatePiece p1
+  let p3 := rotatePiece p2
+  [p0, p1, p2, p3]
 
-/-- All pieces with their index and all possible rotations -/
-def pieces : Vector (Nat × Vector Piece 4) 16 :=
-  Vector.ofFn fun i => (i.val, rotations (puzzle.get i))
+/-! ## Dynamic Grid Types -/
 
-/-! ## Grid Types -/
+/-- 2D array using lists (for dynamic sizing) -/
+abbrev Grid2D (α : Type) := List (List α)
 
-abbrev PieceGrid := Tensor2D 4 4 (Expr (Ty.bitVec BitSize))
-abbrev ColorGrid := Tensor2D 4 4 PieceColors
-
-/-! ## SMT Constraints -/
+/-! ## SMT Constraints (Generalized) -/
 
 /-- Border color as SMT bitvector -/
 def borderBV : Expr (Ty.bitVec ColorBitSize) := bv borderColor ColorBitSize
@@ -116,270 +122,166 @@ def equalColors (p : Piece) (pc : PieceColors) : Expr Ty.bool :=
   (bv (colorInt p.down) ColorBitSize =. pc.downVar) ∧.
   (bv (colorInt p.left) ColorBitSize =. pc.leftVar)
 
-/-- Valid piece index constraint: 0 ≤ index < 16 -/
-def validPieceConstraint (pieceVar : Expr (Ty.bitVec BitSize)) : Expr Ty.bool :=
-  (bv 0 BitSize ≤ᵤ pieceVar) ∧. (pieceVar <ᵤ bv 16 BitSize)
+/-- Valid piece index constraint: 0 ≤ index < numPieces -/
+def validPieceConstraint (numPieces : Nat) (pieceVar : Expr (Ty.bitVec BitSize)) : Expr Ty.bool :=
+  (bv 0 BitSize ≤ᵤ pieceVar) ∧. (pieceVar <ᵤ bv numPieces BitSize)
 
-/-- Apply valid piece constraints to entire grid -/
-def validPieces (vars : PieceGrid) : Smt Unit :=
-  Tensor2D.foldRows (fun acc row =>
-    acc >>= fun _ => row.foldl (fun acc' v => acc' >>= fun _ => assert (validPieceConstraint v)) (pure ())
-  ) (pure ()) vars
+/-- Generate constraint for a single cell based on its position -/
+def cellConstraint (rows cols : Nat) (pcs : Grid2D PieceColors) (r c : Nat) : Expr Ty.bool :=
+  let getPc := fun (i j : Nat) =>
+    match pcs[i]? with
+    | some row => row[j]?
+    | none => none
 
-/-- Get piece colors at grid position -/
-def getPc (pcs : ColorGrid) (r c : Nat) (hr : r < 4 := by omega) (hc : c < 4 := by omega) : PieceColors :=
-  Tensor2D.get pcs ⟨r, hr⟩ ⟨c, hc⟩
+  match getPc r c with
+  | none => Expr.btrue
+  | some pc =>
+    let isTop := r == 0
+    let isBottom := r == rows - 1
+    let isLeft := c == 0
+    let isRight := c == cols - 1
 
-/-- Color constraints for cell (0,0) - top-left corner -/
-def colorConstraint_0_0 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 0 0
-  let right := getPc pcs 0 1
-  let down := getPc pcs 1 0
-  (pc.upVar =. borderBV) ∧. (pc.leftVar =. borderBV) ∧.
-  (pc.rightVar =. right.leftVar) ∧. (pc.downVar =. down.upVar)
+    -- Border constraints
+    let topBorder := if isTop then pc.upVar =. borderBV else Expr.btrue
+    let bottomBorder := if isBottom then pc.downVar =. borderBV else Expr.btrue
+    let leftBorder := if isLeft then pc.leftVar =. borderBV else Expr.btrue
+    let rightBorder := if isRight then pc.rightVar =. borderBV else Expr.btrue
 
-/-- Color constraints for cell (0,1) - top edge -/
-def colorConstraint_0_1 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 0 1
-  let left := getPc pcs 0 0
-  let right := getPc pcs 0 2
-  let down := getPc pcs 1 1
-  (pc.upVar =. borderBV) ∧.
-  (pc.leftVar =. left.rightVar) ∧. (pc.rightVar =. right.leftVar) ∧. (pc.downVar =. down.upVar)
+    -- Adjacency constraints
+    let topMatch := if r > 0 then
+      match getPc (r-1) c with
+      | some up => pc.upVar =. up.downVar
+      | none => Expr.btrue
+      else Expr.btrue
 
-/-- Color constraints for cell (0,2) - top edge -/
-def colorConstraint_0_2 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 0 2
-  let left := getPc pcs 0 1
-  let right := getPc pcs 0 3
-  let down := getPc pcs 1 2
-  (pc.upVar =. borderBV) ∧.
-  (pc.leftVar =. left.rightVar) ∧. (pc.rightVar =. right.leftVar) ∧. (pc.downVar =. down.upVar)
+    let bottomMatch := if r < rows - 1 then
+      match getPc (r+1) c with
+      | some down => pc.downVar =. down.upVar
+      | none => Expr.btrue
+      else Expr.btrue
 
-/-- Color constraints for cell (0,3) - top-right corner -/
-def colorConstraint_0_3 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 0 3
-  let left := getPc pcs 0 2
-  let down := getPc pcs 1 3
-  (pc.upVar =. borderBV) ∧. (pc.rightVar =. borderBV) ∧.
-  (pc.leftVar =. left.rightVar) ∧. (pc.downVar =. down.upVar)
+    let leftMatch := if c > 0 then
+      match getPc r (c-1) with
+      | some left => pc.leftVar =. left.rightVar
+      | none => Expr.btrue
+      else Expr.btrue
 
-/-- Color constraints for cell (1,0) - left edge -/
-def colorConstraint_1_0 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 1 0
-  let up := getPc pcs 0 0
-  let right := getPc pcs 1 1
-  let down := getPc pcs 2 0
-  (pc.leftVar =. borderBV) ∧.
-  (pc.upVar =. up.downVar) ∧. (pc.rightVar =. right.leftVar) ∧. (pc.downVar =. down.upVar)
+    let rightMatch := if c < cols - 1 then
+      match getPc r (c+1) with
+      | some right => pc.rightVar =. right.leftVar
+      | none => Expr.btrue
+      else Expr.btrue
 
-/-- Color constraints for cell (1,1) - interior -/
-def colorConstraint_1_1 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 1 1
-  let up := getPc pcs 0 1
-  let down := getPc pcs 2 1
-  let left := getPc pcs 1 0
-  let right := getPc pcs 1 2
-  (pc.upVar =. up.downVar) ∧. (pc.downVar =. down.upVar) ∧.
-  (pc.leftVar =. left.rightVar) ∧. (pc.rightVar =. right.leftVar)
+    topBorder ∧. bottomBorder ∧. leftBorder ∧. rightBorder ∧.
+    topMatch ∧. bottomMatch ∧. leftMatch ∧. rightMatch
 
-/-- Color constraints for cell (1,2) - interior -/
-def colorConstraint_1_2 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 1 2
-  let up := getPc pcs 0 2
-  let down := getPc pcs 2 2
-  let left := getPc pcs 1 1
-  let right := getPc pcs 1 3
-  (pc.upVar =. up.downVar) ∧. (pc.downVar =. down.upVar) ∧.
-  (pc.leftVar =. left.rightVar) ∧. (pc.rightVar =. right.leftVar)
-
-/-- Color constraints for cell (1,3) - right edge -/
-def colorConstraint_1_3 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 1 3
-  let up := getPc pcs 0 3
-  let down := getPc pcs 2 3
-  let left := getPc pcs 1 2
-  (pc.rightVar =. borderBV) ∧.
-  (pc.upVar =. up.downVar) ∧. (pc.downVar =. down.upVar) ∧. (pc.leftVar =. left.rightVar)
-
-/-- Color constraints for cell (2,0) - left edge -/
-def colorConstraint_2_0 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 2 0
-  let up := getPc pcs 1 0
-  let right := getPc pcs 2 1
-  let down := getPc pcs 3 0
-  (pc.leftVar =. borderBV) ∧.
-  (pc.upVar =. up.downVar) ∧. (pc.rightVar =. right.leftVar) ∧. (pc.downVar =. down.upVar)
-
-/-- Color constraints for cell (2,1) - interior -/
-def colorConstraint_2_1 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 2 1
-  let up := getPc pcs 1 1
-  let down := getPc pcs 3 1
-  let left := getPc pcs 2 0
-  let right := getPc pcs 2 2
-  (pc.upVar =. up.downVar) ∧. (pc.downVar =. down.upVar) ∧.
-  (pc.leftVar =. left.rightVar) ∧. (pc.rightVar =. right.leftVar)
-
-/-- Color constraints for cell (2,2) - interior -/
-def colorConstraint_2_2 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 2 2
-  let up := getPc pcs 1 2
-  let down := getPc pcs 3 2
-  let left := getPc pcs 2 1
-  let right := getPc pcs 2 3
-  (pc.upVar =. up.downVar) ∧. (pc.downVar =. down.upVar) ∧.
-  (pc.leftVar =. left.rightVar) ∧. (pc.rightVar =. right.leftVar)
-
-/-- Color constraints for cell (2,3) - right edge -/
-def colorConstraint_2_3 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 2 3
-  let up := getPc pcs 1 3
-  let down := getPc pcs 3 3
-  let left := getPc pcs 2 2
-  (pc.rightVar =. borderBV) ∧.
-  (pc.upVar =. up.downVar) ∧. (pc.downVar =. down.upVar) ∧. (pc.leftVar =. left.rightVar)
-
-/-- Color constraints for cell (3,0) - bottom-left corner -/
-def colorConstraint_3_0 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 3 0
-  let up := getPc pcs 2 0
-  let right := getPc pcs 3 1
-  (pc.downVar =. borderBV) ∧. (pc.leftVar =. borderBV) ∧.
-  (pc.upVar =. up.downVar) ∧. (pc.rightVar =. right.leftVar)
-
-/-- Color constraints for cell (3,1) - bottom edge -/
-def colorConstraint_3_1 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 3 1
-  let up := getPc pcs 2 1
-  let left := getPc pcs 3 0
-  let right := getPc pcs 3 2
-  (pc.downVar =. borderBV) ∧.
-  (pc.upVar =. up.downVar) ∧. (pc.leftVar =. left.rightVar) ∧. (pc.rightVar =. right.leftVar)
-
-/-- Color constraints for cell (3,2) - bottom edge -/
-def colorConstraint_3_2 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 3 2
-  let up := getPc pcs 2 2
-  let left := getPc pcs 3 1
-  let right := getPc pcs 3 3
-  (pc.downVar =. borderBV) ∧.
-  (pc.upVar =. up.downVar) ∧. (pc.leftVar =. left.rightVar) ∧. (pc.rightVar =. right.leftVar)
-
-/-- Color constraints for cell (3,3) - bottom-right corner -/
-def colorConstraint_3_3 (pcs : ColorGrid) : Expr Ty.bool :=
-  let pc := getPc pcs 3 3
-  let up := getPc pcs 2 3
-  let left := getPc pcs 3 2
-  (pc.downVar =. borderBV) ∧. (pc.rightVar =. borderBV) ∧.
-  (pc.upVar =. up.downVar) ∧. (pc.leftVar =. left.rightVar)
-
-/-- Apply all color constraints -/
-def colorConstraints (pcs : ColorGrid) : Smt Unit := do
-  assert (colorConstraint_0_0 pcs)
-  assert (colorConstraint_0_1 pcs)
-  assert (colorConstraint_0_2 pcs)
-  assert (colorConstraint_0_3 pcs)
-  assert (colorConstraint_1_0 pcs)
-  assert (colorConstraint_1_1 pcs)
-  assert (colorConstraint_1_2 pcs)
-  assert (colorConstraint_1_3 pcs)
-  assert (colorConstraint_2_0 pcs)
-  assert (colorConstraint_2_1 pcs)
-  assert (colorConstraint_2_2 pcs)
-  assert (colorConstraint_2_3 pcs)
-  assert (colorConstraint_3_0 pcs)
-  assert (colorConstraint_3_1 pcs)
-  assert (colorConstraint_3_2 pcs)
-  assert (colorConstraint_3_3 pcs)
+/-- Apply color constraints to all cells -/
+def colorConstraints (rows cols : Nat) (pcs : Grid2D PieceColors) : Smt Unit := do
+  for r in List.range rows do
+    for c in List.range cols do
+      assert (cellConstraint rows cols pcs r c)
 
 /-- Constraint: piece index implies matching colors (with any rotation) -/
-def pieceConstraint (pieceVar : Expr (Ty.bitVec BitSize)) (pc : PieceColors) : Expr Ty.bool :=
-  -- For each possible piece index, if pieceVar == index, then colors must match one rotation
-  pieces.foldl (fun acc (idx, rots) =>
+def pieceConstraint (pieces : List Piece) (pieceVar : Expr (Ty.bitVec BitSize)) (pc : PieceColors) : Expr Ty.bool :=
+  let indexed := pieces.zip (List.range pieces.length)
+  indexed.foldl (fun acc (p, idx) =>
+    let rots := rotations p
     let rotMatch := rots.foldl (fun acc' rot => acc' ∨. equalColors rot pc) Expr.bfalse
     acc ∧. ((bv idx BitSize =. pieceVar) →. rotMatch)
   ) Expr.btrue
 
 /-- Apply piece constraints to entire grid -/
-def pieceConstraints (varPieces : PieceGrid) (colorPieces : ColorGrid) : Smt Unit :=
-  Vector.finRange 4 |>.foldl (fun acc i =>
-    Vector.finRange 4 |>.foldl (fun acc' j =>
-      acc' >>= fun _ =>
-        let vp := Tensor2D.get varPieces i j
-        let pc := Tensor2D.get colorPieces i j
-        assert (pieceConstraint vp pc)
-    ) acc
-  ) (pure ())
+def pieceConstraints (pieces : List Piece) (varPieces : Grid2D (Expr (Ty.bitVec BitSize)))
+    (colorPieces : Grid2D PieceColors) : Smt Unit := do
+  for (pieceRow, colorRow) in varPieces.zip colorPieces do
+    for (vp, pc) in pieceRow.zip colorRow do
+      assert (pieceConstraint pieces vp pc)
 
-/-- Left-pad a string to at least n characters -/
-def leftPad (n : Nat) (c : Char) (s : String) : String :=
-  let pad := String.mk (List.replicate (n - s.length) c)
-  pad ++ s
+/-- Apply valid piece constraints to entire grid -/
+def validPieces (numPieces : Nat) (vars : Grid2D (Expr (Ty.bitVec BitSize))) : Smt Unit := do
+  for row in vars do
+    for v in row do
+      assert (validPieceConstraint numPieces v)
 
-/-- All pairs for distinctness (0 ≤ i < j < 16) -/
-def allPairs16 : List (Fin 16 × Fin 16) :=
+/-- Generate all pairs (i, j) where i < j for distinctness -/
+def allPairs (n : Nat) : List (Nat × Nat) :=
   List.flatten <| List.map (fun i =>
     List.filterMap (fun j =>
-      if h : i < j ∧ j < 16 then
-        some (⟨i, by omega⟩, ⟨j, h.2⟩)
-      else none
-    ) (List.range 16)
-  ) (List.range 16)
+      if i < j then some (i, j) else none
+    ) (List.range n)
+  ) (List.range n)
+
+/-- Flatten a 2D grid to a list -/
+def flatten2D (grid : Grid2D α) : List α :=
+  grid.flatten
 
 /-- Distinctness constraint: all pieces must be different -/
-def distinctPieces (vars : PieceGrid) : Smt Unit := do
-  let flat := Vector.flatten vars
-  for pair in allPairs16 do
-    let (fi, fj) := pair
-    let vi := flat.get fi
-    let vj := flat.get fj
-    assert (¬. (vi =. vj))
+def distinctPieces (vars : Grid2D (Expr (Ty.bitVec BitSize))) : Smt Unit := do
+  let flat := flatten2D vars
+  let n := flat.length
+  for (i, j) in allPairs n do
+    match flat[i]?, flat[j]? with
+    | some vi, some vj => assert (¬. (vi =. vj))
+    | _, _ => pure ()
 
 /-! ## Main Solver -/
 
-/-- Convert color variables tensor to PieceColors grid -/
-def mapColorPieces (cvars : Tensor2D 4 4 (Vector (Expr (Ty.bitVec ColorBitSize)) 4)) : ColorGrid :=
-  Tensor2D.map (fun row =>
-    { upVar := row.get ⟨0, by omega⟩
-    , rightVar := row.get ⟨1, by omega⟩
-    , downVar := row.get ⟨2, by omega⟩
-    , leftVar := row.get ⟨3, by omega⟩ }
-  ) cvars
+/-- Declare piece variables for a cell -/
+def declarePieceVar (i j : Nat) : Smt (Expr (Ty.bitVec BitSize)) := do
+  declareBV s!"x_{i}_{j}" BitSize
 
-/-- Declare color piece variables for one cell -/
-def declareColorCell (i j : Nat) : Smt (Vector (Expr (Ty.bitVec ColorBitSize)) 4) := do
+/-- Declare color variables for a cell -/
+def declareColorCell (i j : Nat) : Smt PieceColors := do
   let up ← declareBV s!"cx_{i}_{j}_Up" ColorBitSize
   let right ← declareBV s!"cx_{i}_{j}_Right" ColorBitSize
   let down ← declareBV s!"cx_{i}_{j}_Down" ColorBitSize
   let left ← declareBV s!"cx_{i}_{j}_Left" ColorBitSize
-  pure ⟨#[up, right, down, left], rfl⟩
+  pure { upVar := up, rightVar := right, downVar := down, leftVar := left }
 
-/-- Declare all color piece variables -/
-def declareColorPieces : Smt (Tensor2D 4 4 (Vector (Expr (Ty.bitVec ColorBitSize)) 4)) := do
-  Vector.tabulateM 4 fun i =>
-    Vector.tabulateM 4 fun j =>
-      declareColorCell i.val j.val
+/-- Declare all piece index variables -/
+def declarePieceVars (rows cols : Nat) : Smt (Grid2D (Expr (Ty.bitVec BitSize))) := do
+  let mut grid := []
+  for i in List.range rows do
+    let mut row := []
+    for j in List.range cols do
+      let v ← declarePieceVar i j
+      row := row ++ [v]
+    grid := grid ++ [row]
+  pure grid
 
-/-- Complete Eternity II SMT program -/
-def eternity2 : Smt Unit := do
-  -- Declare piece index variables (which piece is at each position)
-  let varPieces ← declareBVTensor "x" [4, 4] BitSize
-  -- Declare color variables for each piece position
-  let varColorPieces ← declareColorPieces
-  let colorPieces := mapColorPieces varColorPieces
+/-- Declare all color variables -/
+def declareColorPieces (rows cols : Nat) : Smt (Grid2D PieceColors) := do
+  let mut grid := []
+  for i in List.range rows do
+    let mut row := []
+    for j in List.range cols do
+      let pc ← declareColorCell i j
+      row := row ++ [pc]
+    grid := grid ++ [row]
+  pure grid
 
-  -- Constraint 1: All piece indices are valid (0 ≤ x < 16)
-  validPieces varPieces
+/-- Build the complete SMT problem for a puzzle -/
+def buildSolver (puzzle : Puzzle) : Smt Unit := do
+  let pieces := puzzle.pieces.map listToPiece
+  let numPieces := pieces.length
+
+  -- Declare piece index variables
+  let varPieces ← declarePieceVars puzzle.rows puzzle.cols
+
+  -- Declare color variables
+  let colorPieces ← declareColorPieces puzzle.rows puzzle.cols
+
+  -- Constraint 1: All piece indices are valid (0 ≤ x < numPieces)
+  validPieces numPieces varPieces
 
   -- Constraint 2: All pieces are distinct (each piece used exactly once)
   distinctPieces varPieces
 
   -- Constraint 3: Adjacent edges must match, borders must be 'X'
-  colorConstraints colorPieces
+  colorConstraints puzzle.rows puzzle.cols colorPieces
 
   -- Constraint 4: Piece index implies valid color combination
-  pieceConstraints varPieces colorPieces
+  pieceConstraints pieces varPieces colorPieces
 
 /-! ## Display Helpers -/
 
@@ -395,25 +297,20 @@ def colorCode (c : Char) : String :=
   | 'B' => "\x1b[94m"   -- Bright Blue
   | 'U' => "\x1b[95m"   -- Bright Magenta
   | 'P' => "\x1b[92m"   -- Bright Green
+  | 'R' => "\x1b[91m"   -- Bright Red
+  | 'C' => "\x1b[96m"   -- Bright Cyan
+  | 'O' => "\x1b[33m"   -- Orange (dark yellow)
+  | 'W' => "\x1b[97m"   -- White
   | _ => "\x1b[0m"      -- Reset (unknown)
-
-/-- Get background ANSI color code for a puzzle color character -/
-def bgColorCode (c : Char) : String :=
-  match c with
-  | 'X' => "\x1b[100m"  -- Gray background
-  | 'Y' => "\x1b[103m"  -- Yellow background
-  | 'B' => "\x1b[104m"  -- Blue background
-  | 'U' => "\x1b[105m"  -- Magenta background
-  | 'P' => "\x1b[102m"  -- Green background
-  | _ => "\x1b[0m"
 
 /-- Colorize a single character -/
 def colorChar (c : Char) : String :=
   s!"{bold}{colorCode c}{c}{resetColor}"
 
-/-- Colorize a piece string (4 chars) -/
-def colorizePiece (s : String) : String :=
-  String.join (s.toList.map colorChar)
+/-- Left-pad a string to at least n characters -/
+def leftPad (n : Nat) (c : Char) (s : String) : String :=
+  let pad := String.mk (List.replicate (n - s.length) c)
+  pad ++ s
 
 /-- Parse a hex or binary string to Nat -/
 def parseBitVec (s : String) : Option Nat :=
@@ -438,27 +335,34 @@ def parseBitVec (s : String) : Option Nat :=
     s.toNat?
 
 /-- Display the piece index solution -/
-def displayPieceSolution (model : Model schema) : IO Unit := do
-  IO.println "Piece placement (piece index at each position):"
-  IO.println "┌────┬────┬────┬────┐"
-  for i in [0:4] do
+def displayPieceSolution (puzzle : Puzzle) (model : Model schema) : IO Unit := do
+  IO.println s!"Piece placement ({puzzle.rows}×{puzzle.cols}):"
+
+  -- Build separator lines dynamically
+  let cellWidth := if puzzle.pieces.length > 99 then 5 else 4
+  let topLine := "┌" ++ String.intercalate "┬" (List.replicate puzzle.cols (String.mk (List.replicate cellWidth '─'))) ++ "┐"
+  let midLine := "├" ++ String.intercalate "┼" (List.replicate puzzle.cols (String.mk (List.replicate cellWidth '─'))) ++ "┤"
+  let botLine := "└" ++ String.intercalate "┴" (List.replicate puzzle.cols (String.mk (List.replicate cellWidth '─'))) ++ "┘"
+
+  IO.println topLine
+  for i in List.range puzzle.rows do
     let mut row := "│"
-    for j in [0:4] do
+    for j in List.range puzzle.cols do
       let name := s!"x_{i}_{j}"
       match model.lookup name with
       | some v =>
         let displayVal := match parseBitVec v with
           | some n => s!"{n}"
           | none => v.take 3
-        row := row ++ s!" {leftPad 2 ' ' displayVal} │"
-      | none => row := row ++ "  ? │"
+        row := row ++ s!" {leftPad (cellWidth - 2) ' ' displayVal} │"
+      | none => row := row ++ s!"{String.mk (List.replicate (cellWidth - 1) ' ')}?│"
     IO.println row
-    if i < 3 then
-      IO.println "├────┼────┼────┼────┤"
-  IO.println "└────┴────┴────┴────┘"
+    if i < puzzle.rows - 1 then
+      IO.println midLine
+  IO.println botLine
 
 /-- Display the color solution for each cell as a visual grid -/
-def displayColorSolution (model : Model schema) : IO Unit := do
+def displayColorSolution (puzzle : Puzzle) (model : Model schema) : IO Unit := do
   IO.println ""
   IO.println s!"{bold}Solution grid (edges shown visually):{resetColor}"
   IO.println ""
@@ -473,17 +377,17 @@ def displayColorSolution (model : Model schema) : IO Unit := do
     | none => '?'
 
   -- Print each row of cells (each cell takes 3 lines)
-  for i in [0:4] do
+  for i in List.range puzzle.rows do
     -- Line 1: Top edges (Up color in center of each cell)
     let mut topLine := "    "
-    for j in [0:4] do
+    for j in List.range puzzle.cols do
       let up := getColorChar i j "Up"
       topLine := topLine ++ s!" {colorChar up}{colorChar up}{colorChar up} "
     IO.println topLine
 
     -- Line 2: Left, center, Right
     let mut midLine := "    "
-    for j in [0:4] do
+    for j in List.range puzzle.cols do
       let left := getColorChar i j "Left"
       let right := getColorChar i j "Right"
       midLine := midLine ++ s!"{colorChar left}   {colorChar right}"
@@ -491,77 +395,108 @@ def displayColorSolution (model : Model schema) : IO Unit := do
 
     -- Line 3: Bottom edges (Down color in center of each cell)
     let mut botLine := "    "
-    for j in [0:4] do
+    for j in List.range puzzle.cols do
       let down := getColorChar i j "Down"
       botLine := botLine ++ s!" {colorChar down}{colorChar down}{colorChar down} "
     IO.println botLine
 
     -- Separator line between rows (empty line)
-    if i < 3 then
+    if i < puzzle.rows - 1 then
       IO.println ""
 
-end Eternity2
+/-- Display puzzle pieces visually -/
+def displayPuzzlePieces (puzzle : Puzzle) : IO Unit := do
+  let pieces := puzzle.pieces
+  let piecesPerRow := min puzzle.cols 8  -- Max 8 per row for readability
 
-open Eternity2 in
-def main : IO UInt32 := do
-  IO.println s!"{bold}=== Eternity II Puzzle SMT Solver ==={resetColor}"
-  IO.println "(Ported from Idris idris-snippets/Eternity2SMT.idr)"
-  IO.println "Grid size: 4×4 = 16 pieces"
-  IO.println ""
+  for startIdx in List.range ((pieces.length + piecesPerRow - 1) / piecesPerRow) do
+    let rowStart := startIdx * piecesPerRow
+    let rowEnd := min (rowStart + piecesPerRow) pieces.length
 
-  IO.println s!"{bold}Puzzle pieces:{resetColor}"
-  IO.println s!"  {colorChar 'X'}=Border  {colorChar 'Y'}=Yellow  {colorChar 'B'}=Blue  {colorChar 'U'}=Magenta  {colorChar 'P'}=Green"
-  IO.println ""
-
-  -- Display puzzle pieces in visual format (4 pieces per row, 4 rows)
-  for row in [0:4] do
-    -- Line 1: Top edges of 4 pieces
+    -- Line 1: Top edges
     let mut topLine := "    "
-    for col in [0:4] do
-      let idx := row * 4 + col
-      if hi : idx < 16 then
-        let p := puzzle.get ⟨idx, hi⟩
-        let up := p.get ⟨0, by omega⟩
+    for idx in List.range (rowEnd - rowStart) do
+      let pieceIdx := rowStart + idx
+      match pieces[pieceIdx]? with
+      | some p =>
+        let up := p.head?.getD 'X'
         topLine := topLine ++ s!" {colorChar up}{colorChar up}{colorChar up} "
+      | none => pure ()
     IO.println topLine
 
     -- Line 2: Left, piece#, Right
     let mut midLine := "    "
-    for col in [0:4] do
-      let idx := row * 4 + col
-      if hi : idx < 16 then
-        let p := puzzle.get ⟨idx, hi⟩
-        let left := p.get ⟨3, by omega⟩
-        let right := p.get ⟨1, by omega⟩
-        midLine := midLine ++ s!"{colorChar left}{leftPad 2 ' ' (toString idx)} {colorChar right}"
+    for idx in List.range (rowEnd - rowStart) do
+      let pieceIdx := rowStart + idx
+      match pieces[pieceIdx]? with
+      | some p =>
+        let left := (p[3]?).getD 'X'
+        let right := (p[1]?).getD 'X'
+        midLine := midLine ++ s!"{colorChar left}{leftPad 2 ' ' (toString pieceIdx)} {colorChar right}"
+      | none => pure ()
     IO.println midLine
 
     -- Line 3: Bottom edges
     let mut botLine := "    "
-    for col in [0:4] do
-      let idx := row * 4 + col
-      if hi : idx < 16 then
-        let p := puzzle.get ⟨idx, hi⟩
-        let down := p.get ⟨2, by omega⟩
+    for idx in List.range (rowEnd - rowStart) do
+      let pieceIdx := rowStart + idx
+      match pieces[pieceIdx]? with
+      | some p =>
+        let down := (p[2]?).getD 'X'
         botLine := botLine ++ s!" {colorChar down}{colorChar down}{colorChar down} "
+      | none => pure ()
     IO.println botLine
 
     IO.println ""
+
+/-- Run the solver for a given puzzle -/
+def solvePuzzle (puzzle : Puzzle) (dumpSmt : Bool := false) : IO UInt32 := do
+  IO.println s!"{bold}=== Eternity II Puzzle: {puzzle.name} ==={resetColor}"
+  IO.println s!"Grid size: {puzzle.rows}×{puzzle.cols} = {puzzle.rows * puzzle.cols} pieces"
   IO.println ""
+
+  IO.println s!"{bold}Color legend:{resetColor}"
+  IO.println s!"  {colorChar 'X'}=Border  {colorChar 'Y'}=Yellow  {colorChar 'B'}=Blue  {colorChar 'U'}=Magenta  {colorChar 'P'}=Green"
+  IO.println s!"  {colorChar 'R'}=Red  {colorChar 'C'}=Cyan  {colorChar 'O'}=Orange  {colorChar 'W'}=White"
+  IO.println ""
+
+  IO.println s!"{bold}Puzzle pieces:{resetColor}"
+  displayPuzzlePieces puzzle
+  IO.println ""
+
+  IO.println "Building SMT constraints..."
+  let solver := buildSolver puzzle
+  IO.println s!"Total pieces: {puzzle.pieces.length}"
+  IO.println s!"Variables: {puzzle.rows * puzzle.cols} piece positions + {puzzle.rows * puzzle.cols * 4} colors"
+  IO.println ""
+
+  if dumpSmt then
+    IO.println s!"{bold}SMT-LIB2 Script:{resetColor}"
+    IO.println (String.mk (List.replicate 40 '─'))
+    IO.println (compile solver)
+    IO.println (String.mk (List.replicate 40 '─'))
+    IO.println ""
 
   IO.println "Solving with Z3..."
-  IO.println "(This may take a moment...)"
+  IO.println "(This may take a while for larger puzzles...)"
   IO.println ""
 
-  let result ← solve eternity2
+  let result ← solve solver
   match result with
   | .sat model =>
     IO.println s!"{bold}SAT - Solution found!{resetColor}"
-    displayPieceSolution model
-    displayColorSolution model
+    displayPieceSolution puzzle model
+    displayColorSolution puzzle model
   | .unsat =>
     IO.println "UNSAT - No solution exists"
   | .unknown reason =>
     IO.println s!"Unknown: {reason}"
 
   return 0
+
+end Eternity2
+
+open Eternity2 in
+def main (args : List String) : IO UInt32 := do
+  let dumpSmt := args.contains "--dump-smt" || args.contains "-d"
+  solvePuzzle puzzle4x4 dumpSmt

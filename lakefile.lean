@@ -24,3 +24,6 @@ lean_exe «sudoku» where
 
 lean_exe «eternity2» where
   root := `Examples.Eternity2
+
+lean_exe «nqueens» where
+  root := `Examples.NQueens
