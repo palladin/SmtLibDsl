@@ -70,7 +70,9 @@ def compileExprTests : TestSeq :=
     test "bvUAddO" (compileExpr (Expr.bvUAddO (bv 200 8) (bv 100 8)) = "(bvuaddo (_ bv200 8) (_ bv100 8))") $
     test "bvSAddO" (compileExpr (Expr.bvSAddO (bv 100 8) (bv 100 8)) = "(bvsaddo (_ bv100 8) (_ bv100 8))") $
     test "bvUMulO" (compileExpr (Expr.bvUMulO (bv 20 8) (bv 20 8)) = "(bvumulo (_ bv20 8) (_ bv20 8))") $
-    test "bvSMulO" (compileExpr (Expr.bvSMulO (bv 20 8) (bv 20 8)) = "(bvsmulo (_ bv20 8) (_ bv20 8))")
+    test "bvSMulO" (compileExpr (Expr.bvSMulO (bv 20 8) (bv 20 8)) = "(bvsmulo (_ bv20 8) (_ bv20 8))") $
+    -- Distinct constraint
+    test "distinctBV" (compileExpr (Expr.distinctBV 8 ["x", "y", "z"]) = "(distinct x y z)")
 
 -- Test Ty ToString
 def tyTests : TestSeq :=

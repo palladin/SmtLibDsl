@@ -74,26 +74,6 @@ def rangeConstraints (cells : Vector (Expr (Ty.bitVec 4)) 9) : Vector (Expr Ty.b
     let cell := cells.get cellIdx
     if i.val % 2 == 0 then bv 1 4 ≤ᵤ cell else cell ≤ᵤ bv 9 4
 
-/-- Macro to generate all pairs (i,j) where 0 ≤ i < j < n as a Vector -/
-macro "pairs!" n:num : term => do
-  let nVal := n.getNat
-  let count := nVal * (nVal - 1) / 2
-  let mut pairs : Array Lean.Term := #[]
-  for i in [0:nVal] do
-    for j in [i+1:nVal] do
-      let iTerm := Lean.Syntax.mkNumLit (toString i)
-      let jTerm := Lean.Syntax.mkNumLit (toString j)
-      pairs := pairs.push (← `((⟨$iTerm, by decide⟩, ⟨$jTerm, by decide⟩)))
-  let countTerm := Lean.Syntax.mkNumLit (toString count)
-  `((⟨#[$pairs,*], rfl⟩ : Vector (Fin $n × Fin $n) $countTerm))
-
-/-- All 36 pairs (i,j) where 0 ≤ i < j < 9 -/
-def pairs9 : Vector (Fin 9 × Fin 9) 36 := pairs! 9
-
-/-- Generate distinct constraints for 9 cells (36 pairs) -/
-def distinct9 (cells : Vector (Expr (Ty.bitVec 4)) 9) : Vector (Expr Ty.bool) 36 :=
-  pairs9.map fun (i, j) => ¬. (cells.get i =. cells.get j)
-
 abbrev Grid := Tensor2D 9 9 (Expr (Ty.bitVec 4))
 
 /-- Cell range constraints for entire grid -/
@@ -102,18 +82,18 @@ def cellConstraints (vars : Grid) : Smt Unit :=
 
 /-- Row uniqueness constraints -/
 def rowConstraints (vars : Grid) : Smt Unit :=
-  Tensor2D.foldRows (fun acc row => acc >>= fun _ => assertAllV (distinct9 row)) (pure ()) vars
+  Tensor2D.foldRows (fun acc row => acc >>= fun _ => assert (distinctV row)) (pure ()) vars
 
 /-- Column uniqueness constraints -/
 def colConstraints (vars : Grid) : Smt Unit :=
   Vector.finRange 9 |>.foldl (fun acc c => acc >>= fun _ =>
-    assertAllV (distinct9 (Tensor2D.getCol vars c))) (pure ())
+    assert (distinctV (Tensor2D.getCol vars c))) (pure ())
 
 /-- Box uniqueness constraints -/
 def boxConstraints (vars : Grid) : Smt Unit :=
   Vector.finRange 3 |>.foldl (fun acc br =>
     Vector.finRange 3 |>.foldl (fun acc' bc =>
-      acc' >>= fun _ => assertAllV (distinct9 (getBox vars br bc))) acc) (pure ())
+      acc' >>= fun _ => assert (distinctV (getBox vars br bc))) acc) (pure ())
 
 /-- Fixed cell constraints from puzzle input -/
 def instanceConstraints (puz : Tensor2D 9 9 Nat) (vars : Grid) : Smt Unit :=

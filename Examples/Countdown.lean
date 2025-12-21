@@ -120,20 +120,13 @@ def evalRec (ops : List (BV × BV)) (target : BV) (sp : BV) (st : Stack) (idx : 
     pure (validOp ∧. validAdd ∧. validSub ∧. validMul ∧. validDiv ∧. validSp ∧. restConstraint)
 termination_by ops.length
 
-/-- Helper for generating all pairs -/
-def allPairs (xs : List BV) : List (BV × BV) :=
-  match xs with
-  | [] => []
-  | x :: rest => rest.map (x, ·) ++ allPairs rest
-
 /-- Constraint that pushed operands are all distinct -/
 def distinctOperandsRec (ops : List (BV × BV)) (collected : List BV) (idx : Nat) :
     Smt (Expr Ty.bool) := do
   match ops with
   | [] =>
-    -- Generate distinctness constraints for all collected operands
-    let pairs := allPairs collected
-    pure (pairs.foldl (fun acc (x, y) => acc ∧. ¬. (x =. y)) Expr.btrue)
+    -- Use SMT-LIB distinct constraint for all collected operands
+    pure (distinct collected)
   | (op, opr) :: rest =>
     -- Fresh variable for tracking pushed operands
     let pushed ← declareBV s!"pushed_{idx}" W
@@ -144,7 +137,6 @@ def distinctOperandsRec (ops : List (BV × BV)) (collected : List BV) (idx : Nat
     assert constraint
     -- Only add to collected if it's a push
     distinctOperandsRec rest (pushed :: collected) (idx + 1)
-termination_by ops.length
 
 /-- Valid range constraints for operations and operands -/
 def validRanges (nums : List Int) (ops : List (BV × BV)) : Expr Ty.bool :=

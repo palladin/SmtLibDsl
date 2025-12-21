@@ -178,6 +178,9 @@ inductive Expr : Ty → Type where
   | select  : Expr (Ty.array idxWidth elem) → Expr (Ty.bitVec idxWidth) → Expr elem.toTy
   | store   : Expr (Ty.array idxWidth elem) → Expr (Ty.bitVec idxWidth) → Expr elem.toTy → Expr (Ty.array idxWidth elem)
 
+  -- Distinct constraint (names stored directly to avoid nested inductive issue)
+  | distinctBV : (n : Nat) → (names : List String) → Expr Ty.bool
+
 -- Smart constructors
 
 /-- Create a bitvector literal with value `val` and width `n` -/
@@ -200,6 +203,21 @@ def selectArr (arr : Expr (Ty.array idxWidth elem)) (i : Expr (Ty.bitVec idxWidt
 /-- Write to an array at index, returning new array -/
 def storeArr (arr : Expr (Ty.array idxWidth elem)) (i : Expr (Ty.bitVec idxWidth)) (v : Expr elem.toTy) : Expr (Ty.array idxWidth elem) :=
   Expr.store arr i v
+
+/-- Extract variable name from a variable expression -/
+def Expr.varName : Expr ty → Option String
+  | .var name _ => some name
+  | _ => none
+
+/-- Assert all bitvector expressions are pairwise distinct (List version).
+    Only works on variable expressions - extracts their names for the distinct constraint. -/
+def distinct (es : List (Expr (Ty.bitVec n))) : Expr Ty.bool :=
+  let names := es.filterMap Expr.varName
+  Expr.distinctBV n names
+
+/-- Assert all bitvector expressions are pairwise distinct (Vector version) -/
+def distinctV (es : Vector (Expr (Ty.bitVec n)) m) : Expr Ty.bool :=
+  distinct es.toList
 
 -- Notation (scoped to SMT namespace)
 

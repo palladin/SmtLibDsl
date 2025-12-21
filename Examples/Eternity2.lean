@@ -204,14 +204,6 @@ def validPieces (numPieces : Nat) (vars : Grid2D (Expr (Ty.bitVec BitSize))) : S
     for v in row do
       assert (validPieceConstraint numPieces v)
 
-/-- Generate all pairs (i, j) where i < j for distinctness -/
-def allPairs (n : Nat) : List (Nat × Nat) :=
-  List.flatten <| List.map (fun i =>
-    List.filterMap (fun j =>
-      if i < j then some (i, j) else none
-    ) (List.range n)
-  ) (List.range n)
-
 /-- Flatten a 2D grid to a list -/
 def flatten2D (grid : Grid2D α) : List α :=
   grid.flatten
@@ -219,11 +211,7 @@ def flatten2D (grid : Grid2D α) : List α :=
 /-- Distinctness constraint: all pieces must be different -/
 def distinctPieces (vars : Grid2D (Expr (Ty.bitVec BitSize))) : Smt Unit := do
   let flat := flatten2D vars
-  let n := flat.length
-  for (i, j) in allPairs n do
-    match flat[i]?, flat[j]? with
-    | some vi, some vj => assert (¬. (vi =. vj))
-    | _, _ => pure ()
+  assert (distinct flat)
 
 /-! ## Main Solver -/
 

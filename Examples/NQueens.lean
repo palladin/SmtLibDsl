@@ -65,10 +65,7 @@ def nqueens (n : Nat) : Smt Unit := do
     assert (validRange col)
 
   -- Constraint 2: All columns are distinct (no two queens in same column)
-  for (i, j) in allPairs n do
-    match cols[i]?, cols[j]? with
-    | some ci, some cj => assert (¬. (ci =. cj))
-    | _, _ => pure ()
+  assert (distinct cols)
 
   -- Constraint 3: No two queens on the same diagonal
   for (i, j) in allPairs n do
@@ -172,7 +169,7 @@ def main (args : List String) : IO UInt32 := do
   IO.println "Building SMT constraints..."
   IO.println s!"  - {N} column variables (one per row)"
   IO.println s!"  - {N} range constraints (0 ≤ col < {N})"
-  IO.println s!"  - {N * (N - 1) / 2} distinctness constraints"
+  IO.println s!"  - 1 distinctness constraint (all columns different)"
   IO.println s!"  - {N * (N - 1) / 2} diagonal constraints"
   IO.println ""
 

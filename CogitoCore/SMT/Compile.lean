@@ -69,6 +69,8 @@ def compileExpr : Expr ty → String
   | .mkArray idxWidth elem v => s!"((as const (Array (_ BitVec {idxWidth}) {elem})) {compileExpr v})"
   | .select arr i => s!"(select {compileExpr arr} {compileExpr i})"
   | .store arr i v => s!"(store {compileExpr arr} {compileExpr i} {compileExpr v})"
+  -- Distinct constraint
+  | .distinctBV _ names => s!"(distinct {names |> String.intercalate " "})"
 
 /-- Compile a command, returning the result value and SMT-LIB2 string -/
 def compileCmd : Cmd α → (α × String)
