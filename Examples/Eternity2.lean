@@ -125,7 +125,7 @@ def equalColors (p : Piece) (pc : PieceColors) : Expr Ty.bool :=
 
 /-- Valid piece index constraint: 0 ≤ index < numPieces -/
 def validPieceConstraint (numPieces : Nat) (pieceVar : Expr (Ty.bitVec BitSize)) : Expr Ty.bool :=
-  (bv 0 BitSize ≤ᵤ pieceVar) ∧. (pieceVar <ᵤ bv numPieces BitSize)
+  (bv 0 BitSize ≤.ᵤ pieceVar) ∧. (pieceVar <.ᵤ bv numPieces BitSize)
 
 /-- Generate constraint for a single cell based on its position -/
 def cellConstraint (rows cols : Nat) (pcs : Grid2D PieceColors) (r c : Nat) : Expr Ty.bool :=
@@ -439,7 +439,7 @@ def displayPuzzlePieces (puzzle : Puzzle) : IO Unit := do
     IO.println ""
 
 /-- Run the solver for a given puzzle -/
-def solvePuzzle (puzzle : Puzzle) (dumpSmt : Bool := false) : IO UInt32 := do
+def solvePuzzle (puzzle : Puzzle) (dumpSmt : Bool := false) (profile : Bool := false) : IO UInt32 := do
   IO.println s!"{bold}=== Eternity II Puzzle: {puzzle.name} ==={resetColor}"
   IO.println s!"Grid size: {puzzle.rows}×{puzzle.cols} = {puzzle.rows * puzzle.cols} pieces"
   IO.println ""
@@ -463,7 +463,7 @@ def solvePuzzle (puzzle : Puzzle) (dumpSmt : Bool := false) : IO UInt32 := do
   IO.println "(This may take a while for larger puzzles...)"
   IO.println ""
 
-  let result ← solve solver dumpSmt
+  let result ← solve solver { dumpSmt := dumpSmt, profile := profile }
   match result with
   | .sat model =>
     IO.println s!"{bold}SAT - Solution found!{resetColor}"
@@ -481,4 +481,5 @@ end Eternity2
 open Eternity2 in
 def main (args : List String) : IO UInt32 := do
   let dumpSmt := args.contains "--dump-smt" || args.contains "-d"
-  solvePuzzle puzzle4x4 dumpSmt
+  let profile := args.contains "--profile" || args.contains "-p"
+  solvePuzzle puzzle4x4 dumpSmt profile

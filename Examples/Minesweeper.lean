@@ -408,7 +408,10 @@ partial def solveLoop (status : Tensor2D gridRows gridCols CellStatus) (iteratio
 end Minesweeper
 
 open Minesweeper in
-def main (_args : List String) : IO UInt32 := do
+def main (args : List String) : IO UInt32 := do
+  let _dumpSmt := args.contains "--dump-smt" || args.contains "-d"
+  let _profile := args.contains "--profile" || args.contains "-p"
+
   IO.println s!"{bold}=== Minesweeper SMT Solver ==={resetColor}"
   IO.println "(Ported from Idris idris-snippets/MinesweeperSMT.idr)"
   IO.println ""

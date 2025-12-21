@@ -69,6 +69,7 @@ def compileExpr : Expr ty → String
   | .mkArray idxWidth elem v => s!"((as const (Array (_ BitVec {idxWidth}) {elem})) {compileExpr v})"
   | .select arr i => s!"(select {compileExpr arr} {compileExpr i})"
   | .store arr i v => s!"(store {compileExpr arr} {compileExpr i} {compileExpr v})"
+  | .arrEq l r => s!"(= {compileExpr l} {compileExpr r})"
   -- Distinct constraint
   | .distinctBV _ names => s!"(distinct {names |> String.intercalate " "})"
 

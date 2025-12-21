@@ -295,7 +295,10 @@ def patternsEqual (p1 p2 : Pattern) : Bool :=
 end Life
 
 open Life in
-def main (_args : List String) : IO UInt32 := do
+def main (args : List String) : IO UInt32 := do
+  let dumpSmt := args.contains "--dump-smt" || args.contains "-d"
+  let profile := args.contains "--profile" || args.contains "-p"
+
   IO.println "=== Conway's Game of Life - SMT Verification ==="
   IO.println "(Verifying Knuth's TAOCP Figure 35)"
   IO.println ""
@@ -308,7 +311,7 @@ def main (_args : List String) : IO UInt32 := do
   IO.println "Using Z3 to verify: initialPattern →³ lifePattern"
   IO.println ""
 
-  let result ← solve verifyForward
+  let result ← solve verifyForward { profile := profile, dumpSmt := dumpSmt }
   match result with
   | .sat _model =>
     IO.println "✓ SAT - Z3 confirms the initial pattern evolves to 'LIFE' after 3 steps!"

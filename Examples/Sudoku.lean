@@ -72,7 +72,7 @@ def rangeConstraints (cells : Vector (Expr (Ty.bitVec 4)) 9) : Vector (Expr Ty.b
   Vector.ofFn fun i =>
     let cellIdx : Fin 9 := ⟨i.val / 2, by omega⟩
     let cell := cells.get cellIdx
-    if i.val % 2 == 0 then bv 1 4 ≤ᵤ cell else cell ≤ᵤ bv 9 4
+    if i.val % 2 == 0 then bv 1 4 ≤.ᵤ cell else cell ≤.ᵤ bv 9 4
 
 abbrev Grid := Tensor2D 9 9 (Expr (Ty.bitVec 4))
 
@@ -153,6 +153,7 @@ end Sudoku
 open Sudoku in
 def main (args : List String) : IO UInt32 := do
   let dumpSmt := args.contains "--dump-smt" || args.contains "-d"
+  let profile := args.contains "--profile" || args.contains "-p"
 
   IO.println "=== Sudoku SMT Solver ==="
   IO.println "(Ported from Idris idris-snippets/SudokuSMT.idr)"
@@ -162,7 +163,7 @@ def main (args : List String) : IO UInt32 := do
   IO.println ""
 
   IO.println "Solving with Z3..."
-  let result ← solve sudoku dumpSmt
+  let result ← solve sudoku { dumpSmt := dumpSmt, profile := profile }
   match result with
   | .sat model =>
     IO.println "SAT - Solution found!"

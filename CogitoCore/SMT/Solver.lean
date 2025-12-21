@@ -71,6 +71,18 @@ where
         | _ => none
       acc.reverse ++ pairs
 
+/-- Configuration for the solve function -/
+structure SolveConfig where
+  /-- Dump the generated SMT-LIB2 script to stdout -/
+  dumpSmt : Bool := false
+  /-- Optional timeout in milliseconds for Z3 -/
+  timeout : Option Nat := none
+  /-- Dump profiling info (compile time, Z3 solve time) -/
+  profile : Bool := false
+
+instance : Inhabited SolveConfig where
+  default := {}
+
 /-- Get the Z3 executable path from environment or default -/
 def getZ3Path : IO String := do
   match ← IO.getEnv "COGITO_Z3_PATH" with
@@ -93,10 +105,14 @@ def checkZ3 : IO (Except String String) := do
     return .error s!"Z3 not found at '{z3Path}'.\n\nInstall Z3:\n  • macOS:  brew install z3\n  • Ubuntu: sudo apt-get install z3\n  • Or set COGITO_Z3_PATH environment variable"
 
 /-- Run Z3 on an SMT-LIB2 script string -/
-def runZ3 (vars : VarSchema) (script : String) (timeout : Option Nat := none) : IO (Result vars) := do
+def runZ3 (vars : VarSchema) (script : String) (timeout : Option Nat := none) (profile : Bool := false) : IO (Result vars) := do
   let z3Path ← getZ3Path
   let tempFile := "/tmp/cogito_query.smt2"
   IO.FS.writeFile tempFile script
+  if profile then
+    let sizeBytes := script.utf8ByteSize
+    let sizeKb := sizeBytes.toFloat / 1024.0
+    IO.println s!"  SMT file size: {sizeBytes} bytes ({sizeKb.toString}KB)"
   try
     let timeoutArgs := match timeout with
       | some ms => #[s!"-t:{ms}"]
@@ -121,17 +137,37 @@ def runZ3 (vars : VarSchema) (script : String) (timeout : Option Nat := none) : 
   catch e =>
     return .unknown s!"Failed to run Z3: {e}\n\nInstall Z3:\n  • macOS:  brew install z3\n  • Ubuntu: sudo apt-get install z3\n  • Or set COGITO_Z3_PATH environment variable"
 
-/-- Compile and solve an Smt program using Z3, returning schema-indexed result
-    timeout: Optional timeout in milliseconds -/
-def solve (smt : Smt Unit) (dumpSmt : Bool := false) (timeout : Option Nat := none) : IO (Result smt.schema) := do
+/-- Compile and solve an Smt program using Z3, returning schema-indexed result -/
+def solve (smt : Smt Unit) (config : SolveConfig := {}) : IO (Result smt.schema) := do
+  -- Compile to SMT-LIB2
+  let compileStart ← IO.monoNanosNow
   let script := compile smt
-  if dumpSmt then
+  let compileEnd ← IO.monoNanosNow
+  let compileTimeMs := (compileEnd - compileStart).toFloat / 1_000_000.0
+
+  if config.dumpSmt then
     IO.println "SMT-LIB2 Script:"
     IO.println (String.mk (List.replicate 40 '─'))
     IO.println script
     IO.println (String.mk (List.replicate 40 '─'))
     IO.println ""
-  runZ3 smt.schema script timeout
+
+  -- Run Z3
+  let z3Start ← IO.monoNanosNow
+  let result ← runZ3 smt.schema script config.timeout config.profile
+  let z3End ← IO.monoNanosNow
+  let z3TimeMs := (z3End - z3Start).toFloat / 1_000_000.0
+
+  if config.profile then
+    IO.println "Profile:"
+    IO.println (String.mk (List.replicate 40 '─'))
+    IO.println s!"  Compile time: {compileTimeMs.toString}ms"
+    IO.println s!"  Z3 solve time: {z3TimeMs.toString}ms"
+    IO.println s!"  Total time: {(compileTimeMs + z3TimeMs).toString}ms"
+    IO.println (String.mk (List.replicate 40 '─'))
+    IO.println ""
+
+  return result
 
 /-- Print the compiled SMT-LIB2 script (for debugging) -/
 def printScript (smt : Smt Unit) : IO Unit := do

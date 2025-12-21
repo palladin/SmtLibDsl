@@ -177,6 +177,7 @@ inductive Expr : Ty → Type where
   | mkArray : (idxWidth : Nat) → (elem : ElemTy) → Expr elem.toTy → Expr (Ty.array idxWidth elem)
   | select  : Expr (Ty.array idxWidth elem) → Expr (Ty.bitVec idxWidth) → Expr elem.toTy
   | store   : Expr (Ty.array idxWidth elem) → Expr (Ty.bitVec idxWidth) → Expr elem.toTy → Expr (Ty.array idxWidth elem)
+  | arrEq   : Expr (Ty.array idxWidth elem) → Expr (Ty.array idxWidth elem) → Expr Ty.bool
 
   -- Distinct constraint (names stored directly to avoid nested inductive issue)
   | distinctBV : (n : Nat) → (names : List String) → Expr Ty.bool
@@ -221,6 +222,16 @@ def distinctV (es : Vector (Expr (Ty.bitVec n)) m) : Expr Ty.bool :=
 
 -- Notation (scoped to SMT namespace)
 
+/-
+  Notation conventions:
+  - ALL SMT operators use `.` suffix to distinguish from Lean built-ins
+  - Subscripts indicate variant when multiple exist:
+    - `ᵤ` = unsigned (e.g., `<.ᵤ` unsigned less-than)
+    - `ₛ` = signed (e.g., `<.ₛ` signed less-than)
+    - `ₐ` = array (e.g., `=.ₐ` array equality)
+  - No subscript = only one variant exists (e.g., `=.` bitvector equality)
+-/
+
 -- BitVector arithmetic
 scoped infixl:70 " +. " => Expr.bvAdd
 scoped infixl:70 " -. " => Expr.bvSub
@@ -235,18 +246,23 @@ scoped prefix:80 "~. " => Expr.bvNot
 -- Shifts
 scoped infixl:55 " <<. " => Expr.bvShl
 scoped infixl:55 " >>. " => Expr.bvLShr
-scoped infixl:55 " >>>. " => Expr.bvAShr
+scoped infixl:55 " >>>.ₛ " => Expr.bvAShr
 
--- Comparisons
+-- Equality
 scoped infixl:50 " =. " => Expr.bvEq
-scoped infixl:50 " <ᵤ " => Expr.bvULt
-scoped infixl:50 " ≤ᵤ " => Expr.bvULe
-scoped infixl:50 " >ᵤ " => Expr.bvUGt
-scoped infixl:50 " ≥ᵤ " => Expr.bvUGe
-scoped infixl:50 " <ₛ " => Expr.bvSLt
-scoped infixl:50 " ≤ₛ " => Expr.bvSLe
-scoped infixl:50 " >ₛ " => Expr.bvSGt
-scoped infixl:50 " ≥ₛ " => Expr.bvSGe
+scoped infixl:50 " =.ₐ " => Expr.arrEq
+
+-- Unsigned comparisons
+scoped infixl:50 " <.ᵤ " => Expr.bvULt
+scoped infixl:50 " ≤.ᵤ " => Expr.bvULe
+scoped infixl:50 " >.ᵤ " => Expr.bvUGt
+scoped infixl:50 " ≥.ᵤ " => Expr.bvUGe
+
+-- Signed comparisons
+scoped infixl:50 " <.ₛ " => Expr.bvSLt
+scoped infixl:50 " ≤.ₛ " => Expr.bvSLe
+scoped infixl:50 " >.ₛ " => Expr.bvSGt
+scoped infixl:50 " ≥.ₛ " => Expr.bvSGe
 
 -- Boolean operations
 scoped infixl:35 " ∧. " => Expr.and

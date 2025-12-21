@@ -76,17 +76,17 @@ def evalRec (ops : List (BV × BV)) (target : BV) (sp : BV) (st : Stack) (idx : 
 
     -- Symmetry breaking for commutative ops
     let validAdd := Expr.ite ((op =. one) ∧. (opr =. zero))
-      (stPrev ≤ₛ stTop)
+      (stPrev ≤.ₛ stTop)
       Expr.btrue
 
     -- Subtraction: ensure positive result
     let validSub := Expr.ite ((op =. one) ∧. (opr =. one))
-      (stPrev >ₛ stTop)
+      (stPrev >.ₛ stTop)
       Expr.btrue
 
     -- Multiplication: neither operand is 1, symmetry breaking
     let validMul := Expr.ite ((op =. one) ∧. (opr =. two))
-      ((¬. (stPrev =. one)) ∧. (¬. (stTop =. one)) ∧. (stPrev ≤ₛ stTop))
+      ((¬. (stPrev =. one)) ∧. (¬. (stTop =. one)) ∧. (stPrev ≤.ₛ stTop))
       Expr.btrue
 
     -- Division: exact division, divisor not 0 or 1
@@ -107,14 +107,19 @@ def evalRec (ops : List (BV × BV)) (target : BV) (sp : BV) (st : Stack) (idx : 
           (stPrev *. stTop)
           (Expr.bvSDiv stPrev stTop)))
 
-    let st' := Expr.ite (op =. zero)
+    let stExpr := Expr.ite (op =. zero)
       (storeArr st sp' opr)
       (storeArr st sp' applyResult)
 
-    -- Stack pointer must stay positive
-    let validSp := sp' >ₛ zero
+    -- Declare a fresh array variable and assert it equals the computed stack
+    -- This prevents exponential blowup by using the variable in recursion
+    let st' ← declareArray s!"st_{idx}" W (ElemTy.bitVec W)
+    assert (st' =.ₐ stExpr)
 
-    -- Recurse with updated state
+    -- Stack pointer must stay positive
+    let validSp := sp' >.ₛ zero
+
+    -- Recurse with updated state (using the variable, not the expression)
     let restConstraint ← evalRec rest target sp' st' (idx + 1)
 
     pure (validOp ∧. validAdd ∧. validSub ∧. validMul ∧. validDiv ∧. validSp ∧. restConstraint)
@@ -268,6 +273,7 @@ end Countdown
 open Countdown in
 def main (args : List String) : IO UInt32 := do
   let dumpSmt := args.contains "--dump-smt" || args.contains "-d"
+  let profile := args.contains "--profile" || args.contains "-p"
 
   -- Default puzzle: classic Countdown example
   let nums := [1, 3, 7, 10, 25, 50]
@@ -287,7 +293,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println s!"Trying with {n} instructions..."
 
     let problem := countdown nums target n
-    let result ← solve problem dumpSmt
+    IO.println "Problem is set up."
+    let result ← solve problem { dumpSmt := dumpSmt, profile := profile }
     match result with
     | .sat model =>
       IO.println s!"SAT - Solution found with {n} instructions!"

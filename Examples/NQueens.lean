@@ -30,12 +30,12 @@ def BitSize : Nat := 8
 
 /-- Valid range constraint: 0 ≤ x < N -/
 def validRange (x : Expr (Ty.bitVec BitSize)) : Expr Ty.bool :=
-  (bv 0 BitSize ≤ᵤ x) ∧. (x <ᵤ bv N BitSize)
+  (bv 0 BitSize ≤.ᵤ x) ∧. (x <.ᵤ bv N BitSize)
 
 /-- Absolute difference using bitvector operations -/
 def absDiff (x y : Expr (Ty.bitVec BitSize)) : Expr (Ty.bitVec BitSize) :=
   -- Use conditional: if x >= y then x - y else y - x
-  Expr.ite (x ≥ᵤ y) (x -. y) (y -. x)
+  Expr.ite (x ≥.ᵤ y) (x -. y) (y -. x)
 
 /-- Diagonal constraint: queens at rows i and j don't attack diagonally
     |col[i] - col[j]| ≠ |i - j| -/
@@ -161,6 +161,7 @@ end NQueens
 open NQueens in
 def main (args : List String) : IO UInt32 := do
   let dumpSmt := args.contains "--dump-smt" || args.contains "-d"
+  let profile := args.contains "--profile" || args.contains "-p"
 
   IO.println s!"{bold}=== N-Queens Puzzle SMT Solver ==={resetColor}"
   IO.println s!"Board size: {N}×{N}"
@@ -176,7 +177,7 @@ def main (args : List String) : IO UInt32 := do
   let problem := nqueens N
 
   IO.println "Solving with Z3..."
-  let result ← solve problem dumpSmt
+  let result ← solve problem { dumpSmt := dumpSmt, profile := profile }
 
   match result with
   | .sat model =>
