@@ -109,11 +109,12 @@ CogitoCore/
 ├── SMT.lean          -- Re-exports SMT modules
 Examples/
 ├── Countdown.lean    -- Countdown numbers game solver
-├── Sudoku.lean       -- 9×9 Sudoku solver
-├── NQueens.lean      -- N-Queens puzzle solver
 ├── Eternity2.lean    -- Eternity II edge-matching puzzle
 ├── Life.lean         -- Conway's Game of Life verification
-└── Minesweeper.lean  -- Minesweeper auto-solver
+├── MagicSquare.lean  -- Magic square solver
+├── Minesweeper.lean  -- Minesweeper auto-solver
+├── NQueens.lean      -- N-Queens puzzle solver
+└── Sudoku.lean       -- 9×9 Sudoku solver
 Main.lean             -- CLI entry point
 Tests/
 └── SMT.lean          -- Test suite
@@ -155,6 +156,12 @@ lake exe minesweeper
 Solves the classic Countdown numbers game puzzle. Given a set of numbers and a target, finds an arithmetic expression using +, -, *, / that evaluates to the target. Uses RPN (Reverse Polish Notation) stack-based evaluation with SMT constraints.
 ```bash
 lake exe countdown
+```
+
+### Magic Square
+Finds an n×n magic square where all rows, columns, and diagonals sum to the same "magic constant". Uses distinctness constraints and symmetry breaking to efficiently find solutions.
+```bash
+lake exe magicsquare
 ```
 
 ## License

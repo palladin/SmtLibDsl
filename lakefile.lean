@@ -36,3 +36,6 @@ lean_exe «minesweeper» where
 
 lean_exe «countdown» where
   root := `Examples.Countdown
+
+lean_exe «magicsquare» where
+  root := `Examples.MagicSquare
