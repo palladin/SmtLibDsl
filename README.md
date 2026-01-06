@@ -114,6 +114,7 @@ Examples/
 ├── MagicSquare.lean  -- Magic square solver
 ├── Minesweeper.lean  -- Minesweeper auto-solver
 ├── NQueens.lean      -- N-Queens puzzle solver
+├── Sokoban.lean      -- Sokoban puzzle solver
 └── Sudoku.lean       -- 9×9 Sudoku solver
 Main.lean             -- CLI entry point
 Tests/
@@ -162,6 +163,13 @@ lake exe countdown
 Finds an n×n magic square where all rows, columns, and diagonals sum to the same "magic constant". Uses distinctness constraints and symmetry breaking to efficiently find solutions.
 ```bash
 lake exe magicsquare
+```
+
+### Sokoban
+Solves Sokoban puzzles by finding a sequence of moves (up/down/left/right) that pushes all boxes onto goal positions. Uses SMT to model player and box positions at each timestep. Includes 17 levels from original Sokoban and Microban collections.
+```bash
+lake exe sokoban --list    # List available levels
+lake exe sokoban 2         # Solve level 2
 ```
 
 ## License

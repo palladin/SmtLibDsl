@@ -12,6 +12,10 @@ lean_lib «CogitoCore» where
   -- We expose the aggregated `CogitoCore` module as the library entry point.
   roots := #[`CogitoCore]
 
+lean_lib «Examples» where
+  -- Examples library for shared modules
+  roots := #[`Examples.SokobanLevels]
+
 @[default_target]
 lean_exe «cogito-core» where
   root := `Main
@@ -39,3 +43,6 @@ lean_exe «countdown» where
 
 lean_exe «magicsquare» where
   root := `Examples.MagicSquare
+
+lean_exe «sokoban» where
+  root := `Examples.Sokoban
