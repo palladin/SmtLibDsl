@@ -72,7 +72,36 @@ structure Level where
   goals : List (Nat × Nat)      -- Target positions
   initialPlayer : Nat × Nat     -- Starting player position
   initialBoxes : List (Nat × Nat) -- Starting box positions
+  deadCorners : List (Nat × Nat) -- Corner positions that are not goals (deadlock if box placed)
 deriving Repr
+
+/-- Check if a position is a wall in the raw grid -/
+def isWallAt (walls : List (Nat × Nat)) (r c : Nat) : Bool :=
+  walls.any fun (wr, wc) => wr == r && wc == c
+
+/-- Check if a position is a goal -/
+def isGoalAt (goals : List (Nat × Nat)) (r c : Nat) : Bool :=
+  goals.any fun (gr, gc) => gr == r && gc == c
+
+/-- Compute dead corners: floor cells with walls on two adjacent sides, not goals -/
+def computeDeadCorners (width height : Nat) (walls goals : List (Nat × Nat)) : List (Nat × Nat) := Id.run do
+  let mut corners : List (Nat × Nat) := []
+  for r in List.range height do
+    for c in List.range width do
+      -- Skip if wall or goal
+      if isWallAt walls r c || isGoalAt goals r c then
+        continue
+      -- Check for corner patterns (walls on two adjacent sides)
+      let wallUp := r == 0 || isWallAt walls (r - 1) c
+      let wallDown := isWallAt walls (r + 1) c
+      let wallLeft := c == 0 || isWallAt walls r (c - 1)
+      let wallRight := isWallAt walls r (c + 1)
+      -- Corner if blocked in two perpendicular directions
+      let isCorner := (wallUp && wallLeft) || (wallUp && wallRight) ||
+                      (wallDown && wallLeft) || (wallDown && wallRight)
+      if isCorner then
+        corners := (r, c) :: corners
+  corners
 
 /-- Parse a level from string lines -/
 def Level.parse (lines : List String) : Level := Id.run do
@@ -105,7 +134,8 @@ def Level.parse (lines : List String) : Level := Id.run do
         | none => pure ()
     | none => pure ()
 
-  { width, height, walls, goals, initialPlayer := player, initialBoxes := boxes }
+  { width, height, walls, goals, initialPlayer := player, initialBoxes := boxes,
+    deadCorners := computeDeadCorners width height walls goals }
 
 /-! ## SMT Helpers -/
 
@@ -122,6 +152,11 @@ def dirRight : Dir := coord 3
 def isWall (level : Level) (r c : Coord) : Expr Ty.bool :=
   level.walls.foldl (fun acc (wr, wc) =>
     acc ∨. ((r =. coord wr) ∧. (c =. coord wc))) Expr.bfalse
+
+/-- Check if position is a dead corner (box here = deadlock) -/
+def isDeadCorner (level : Level) (r c : Coord) : Expr Ty.bool :=
+  level.deadCorners.foldl (fun acc (cr, cc) =>
+    acc ∨. ((r =. coord cr) ∧. (c =. coord cc))) Expr.bfalse
 
 /-- Compute new position after moving in direction -/
 def movePos (r c dir : Coord) : (Coord × Coord) :=
@@ -177,6 +212,15 @@ def assertGoalState (state : State) (level : Level) : Smt Unit := do
     let onGoal := level.goals.foldl (fun acc (gr, gc) =>
       acc ∨. ((boxR =. coord gr) ∧. (boxC =. coord gc))) Expr.bfalse
     assert onGoal
+
+/-- Assert no box is in a dead corner (early deadlock detection) -/
+def assertNoDeadlock (state : State) (level : Level) : Smt Unit := do
+  -- If no dead corners, skip
+  if level.deadCorners.isEmpty then return
+  -- Each box must NOT be in a dead corner
+  for (boxR, boxC) in state.boxRows.zip state.boxCols do
+    let inDeadCorner := isDeadCorner level boxR boxC
+    assert (¬. inDeadCorner)
 
 /-! ## Transition Constraints -/
 
@@ -245,10 +289,13 @@ def sokoban (level : Level) (maxSteps : Nat) : Smt (List Dir) := do
   | some s0 => assertInitialState s0 level
   | none => pure ()
 
-  -- Assert transitions
+  -- Assert transitions and deadlock constraints for each timestep
   for t in List.range dirs.length do
     match states[t]?, states[t + 1]?, dirs[t]? with
-    | some st, some st', some dir => assertTransition level st st' dir
+    | some st, some st', some dir =>
+      assertTransition level st st' dir
+      -- No deadlock at the next state (prune dead ends early!)
+      assertNoDeadlock st' level
     | _, _, _ => pure ()
 
   -- Assert goal state at final state
@@ -376,6 +423,7 @@ def main (args : List String) : IO UInt32 := do
   IO.println ""
   IO.println s!"Boxes: {level.initialBoxes.length}"
   IO.println s!"Goals: {level.goals.length}"
+  IO.println s!"Dead corners: {level.deadCorners.length} (pruning enabled)"
   IO.println s!"Max steps: {maxTries}"
   IO.println ""
 
