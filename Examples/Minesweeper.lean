@@ -1,5 +1,5 @@
 /-
-  CogitoCore - Minesweeper SMT Solver Example
+  SmtLibDsl - Minesweeper SMT Solver Example
   Ported from: https://github.com/palladin/idris-snippets/blob/master/src/MinesweeperSMT.idr
 
   Minesweeper is a puzzle where:
@@ -13,9 +13,9 @@
   3. Query which unknown cells MUST be safe (0) or MUST be mines (1)
   4. Automatically reveal safe cells until the entire grid is known
 -/
-import CogitoCore
+import SmtLibDsl
 
-open CogitoCore.SMT
+open SmtLibDsl.SMT
 
 namespace Minesweeper
 

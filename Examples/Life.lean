@@ -1,5 +1,5 @@
 /-
-  CogitoCore - Conway's Game of Life SMT Solver Example
+  SmtLibDsl - Conway's Game of Life SMT Solver Example
   Ported from: https://github.com/palladin/idris-snippets/blob/master/src/LifeSMT.idr
 
   Given a target pattern, finds an initial pattern that evolves into it
@@ -8,9 +8,9 @@
   Uses integer variables (0 or 1) to represent cell states.
   The solver finds an initial board configuration that transitions to the target pattern.
 -/
-import CogitoCore
+import SmtLibDsl
 
-open CogitoCore.SMT
+open SmtLibDsl.SMT
 
 namespace Life
 

@@ -1,5 +1,5 @@
 /-
-  CogitoCore - Eternity II Puzzle SMT Solver
+  SmtLibDsl - Eternity II Puzzle SMT Solver
   Ported from: https://github.com/palladin/idris-snippets/blob/master/src/Eternity2SMT.idr
 
   Eternity II is an edge-matching puzzle where:
@@ -12,9 +12,9 @@
   Supports various puzzle sizes:
   - 4×4 (16 pieces) - Demo/Test
 -/
-import CogitoCore
+import SmtLibDsl
 
-open CogitoCore.SMT
+open SmtLibDsl.SMT
 
 namespace Eternity2
 

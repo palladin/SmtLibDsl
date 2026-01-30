@@ -1,10 +1,10 @@
 /-
-  CogitoCore - SMT-LIB BitVector Theory DSL
+  SmtLibDsl - SMT-LIB BitVector Theory DSL
   Z3 solver integration
 -/
-import CogitoCore.SMT.Compile
+import SmtLibDsl.SMT.Compile
 
-namespace CogitoCore.SMT
+namespace SmtLibDsl.SMT
 
 /-- Model holding variable assignments, indexed by schema -/
 structure Model (vars : VarSchema) where
@@ -85,7 +85,7 @@ instance : Inhabited SolveConfig where
 
 /-- Get the Z3 executable path from environment or default -/
 def getZ3Path : IO String := do
-  match ← IO.getEnv "COGITO_Z3_PATH" with
+  match ← IO.getEnv "SMTLIBDSL_Z3_PATH" with
   | some path => pure path
   | none => pure "z3"
 
@@ -102,12 +102,12 @@ def checkZ3 : IO (Except String String) := do
     else
       return .error s!"Z3 returned error: {result.stderr}"
   catch _ =>
-    return .error s!"Z3 not found at '{z3Path}'.\n\nInstall Z3:\n  • macOS:  brew install z3\n  • Ubuntu: sudo apt-get install z3\n  • Or set COGITO_Z3_PATH environment variable"
+    return .error s!"Z3 not found at '{z3Path}'.\n\nInstall Z3:\n  • macOS:  brew install z3\n  • Ubuntu: sudo apt-get install z3\n  • Or set SMTLIBDSL_Z3_PATH environment variable"
 
 /-- Run Z3 on an SMT-LIB2 script string -/
 def runZ3 (vars : VarSchema) (script : String) (timeout : Option Nat := none) (profile : Bool := false) : IO (Result vars) := do
   let z3Path ← getZ3Path
-  let tempFile := "/tmp/cogito_query.smt2"
+  let tempFile := "/tmp/smtlibdsl_query.smt2"
   IO.FS.writeFile tempFile script
   if profile then
     let sizeBytes := script.utf8ByteSize
@@ -135,7 +135,7 @@ def runZ3 (vars : VarSchema) (script : String) (timeout : Option Nat := none) (p
       else
         return .unknown reason
   catch e =>
-    return .unknown s!"Failed to run Z3: {e}\n\nInstall Z3:\n  • macOS:  brew install z3\n  • Ubuntu: sudo apt-get install z3\n  • Or set COGITO_Z3_PATH environment variable"
+    return .unknown s!"Failed to run Z3: {e}\n\nInstall Z3:\n  • macOS:  brew install z3\n  • Ubuntu: sudo apt-get install z3\n  • Or set SMTLIBDSL_Z3_PATH environment variable"
 
 /-- Compile and solve an Smt program using Z3, returning schema-indexed result -/
 def solve (smt : Smt Unit) (config : SolveConfig := {}) : IO (Result smt.schema) := do
@@ -173,4 +173,4 @@ def solve (smt : Smt Unit) (config : SolveConfig := {}) : IO (Result smt.schema)
 def printScript (smt : Smt Unit) : IO Unit := do
   IO.println (compile smt)
 
-end CogitoCore.SMT
+end SmtLibDsl.SMT

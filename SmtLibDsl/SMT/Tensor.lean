@@ -1,10 +1,10 @@
 /-
-  CogitoCore - SMT-LIB BitVector Theory DSL
+  SmtLibDsl - SMT-LIB BitVector Theory DSL
   Tensor types for multi-dimensional variable declarations
 
   Uses Lean 4's standard library `Vector` type (structure wrapping Array with size proof).
 -/
-namespace CogitoCore.SMT
+namespace SmtLibDsl.SMT
 
 /-! ## Extended Vector operations
 
@@ -196,4 +196,4 @@ scoped macro:max t:term noWs "[" i:term ", " j:term ", " k:term "]" : term => `(
 /-- Alias for Vector (for code compatibility) -/
 abbrev Vect := Vector
 
-end CogitoCore.SMT
+end SmtLibDsl.SMT

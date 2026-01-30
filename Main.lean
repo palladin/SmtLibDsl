@@ -1,7 +1,7 @@
-import CogitoCore
+import SmtLibDsl
 
 def main (args : List String) : IO UInt32 := do
-  IO.println s!"CogitoCore {CogitoCore.version}"
+  IO.println s!"SmtLibDsl {SmtLibDsl.version}"
   IO.println ""
 
   if args.isEmpty then
@@ -41,7 +41,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "Run: lake exe sokoban"
   | _ =>
     IO.eprintln s!"Unknown example: {cmd}"
-    IO.eprintln "Run 'lake exe cogito-core' for available examples."
+    IO.eprintln "Run 'lake exe smtlibdsl' for available examples."
     return 1
 
   pure 0

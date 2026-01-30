@@ -1,5 +1,5 @@
 /-
-  CogitoCore - Sokoban Original Levels
+  SmtLibDsl - Sokoban Original Levels
 
   The original 90 levels from Sokoban (1982) by Hiroyuki Imabayashi.
   Published by Thinking Rabbit, Japan.
@@ -13,7 +13,7 @@
     + - Player on goal
     (space) - Floor
 -/
-import CogitoCore
+import SmtLibDsl
 
 namespace Sokoban.Levels
 

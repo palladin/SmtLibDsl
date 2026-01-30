@@ -1,8 +1,8 @@
-import CogitoCore.SMT
+import SmtLibDsl.SMT
 
-namespace CogitoCore
+namespace SmtLibDsl
 
 /-- Semantic version for the research prototype. -/
 def version : String := "0.1.0"
 
-end CogitoCore
+end SmtLibDsl

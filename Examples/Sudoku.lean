@@ -1,14 +1,14 @@
 /-
-  CogitoCore - Sudoku SMT Solver Example
+  SmtLibDsl - Sudoku SMT Solver Example
   Ported from: https://github.com/palladin/idris-snippets/blob/master/src/SudokuSMT.idr
 
   Uses 4-bit bitvectors to represent Sudoku digits (1-9).
   The puzzle is represented as a 9x9 grid (Tensor [9, 9]).
 
 -/
-import CogitoCore
+import SmtLibDsl
 
-open CogitoCore.SMT
+open SmtLibDsl.SMT
 
 namespace Sudoku
 

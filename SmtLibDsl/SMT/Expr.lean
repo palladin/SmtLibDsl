@@ -1,8 +1,8 @@
 /-
-  CogitoCore - SMT-LIB BitVector Theory DSL
+  SmtLibDsl - SMT-LIB BitVector Theory DSL
   Core types and type-indexed expressions
 -/
-namespace CogitoCore.SMT
+namespace SmtLibDsl.SMT
 
 /-- Element types for arrays (base types only, no nested arrays) -/
 inductive ElemTy where
@@ -270,4 +270,4 @@ scoped infixl:30 " ∨. " => Expr.or
 scoped infixl:25 " →. " => Expr.imp
 scoped prefix:40 "¬. " => Expr.not
 
-end CogitoCore.SMT
+end SmtLibDsl.SMT

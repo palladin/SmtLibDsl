@@ -1,26 +1,26 @@
 import Lake
 open Lake DSL
 
-package «CogitoCore» where
+package «SmtLibDsl» where
   -- All Lean modules are relative to the repository root.
   srcDir := "."
 
 require LSpec from git
   "https://github.com/argumentcomputer/LSpec" @ "main"
 
-lean_lib «CogitoCore» where
-  -- We expose the aggregated `CogitoCore` module as the library entry point.
-  roots := #[`CogitoCore]
+lean_lib «SmtLibDsl» where
+  -- We expose the aggregated `SmtLibDsl` module as the library entry point.
+  roots := #[`SmtLibDsl]
 
 lean_lib «Examples» where
   -- Examples library for shared modules
   roots := #[`Examples.SokobanLevels]
 
 @[default_target]
-lean_exe «cogito-core» where
+lean_exe «smtlibdsl» where
   root := `Main
 
-lean_exe «cogito-test» where
+lean_exe «smtlibdsl-test» where
   root := `Tests.SMT
 
 lean_exe «sudoku» where

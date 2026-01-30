@@ -1,10 +1,10 @@
 /-
-  CogitoCore - SMT-LIB BitVector Theory DSL
+  SmtLibDsl - SMT-LIB BitVector Theory DSL
   Compilation to SMT-LIB2 string format
 -/
-import CogitoCore.SMT.Cmd
+import SmtLibDsl.SMT.Cmd
 
-namespace CogitoCore.SMT
+namespace SmtLibDsl.SMT
 
 /-- Compile an expression to SMT-LIB2 syntax -/
 def compileExpr : Expr ty → String
@@ -89,4 +89,4 @@ where
       let rest := compileBody (f a)
       if rest.isEmpty then s else s ++ "\n" ++ rest
 
-end CogitoCore.SMT
+end SmtLibDsl.SMT

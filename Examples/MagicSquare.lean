@@ -1,5 +1,5 @@
 /-
-  CogitoCore - Magic Square SMT Solver Example
+  SmtLibDsl - Magic Square SMT Solver Example
 
   A Magic Square is an n×n grid filled with distinct integers 1 to n²
   such that all rows, columns, and both main diagonals sum to the
@@ -8,9 +8,9 @@
   For a 3×3 square: M = 3(9 + 1) / 2 = 15
   For a 4×4 square: M = 4(16 + 1) / 2 = 34
 -/
-import CogitoCore
+import SmtLibDsl
 
-open CogitoCore.SMT
+open SmtLibDsl.SMT
 
 namespace MagicSquare
 
@@ -230,7 +230,7 @@ def main : IO UInt32 := do
   IO.println ""
 
   -- Check Z3 availability
-  match ← CogitoCore.SMT.checkZ3 with
+  match ← SmtLibDsl.SMT.checkZ3 with
   | .error msg =>
     IO.eprintln msg
     return 1
@@ -242,7 +242,7 @@ def main : IO UInt32 := do
   IO.println s!"Magic constant = {MagicSquare.magicConstant}"
   IO.println ""
 
-  let result ← CogitoCore.SMT.solve MagicSquare.magicSquareQuery
+  let result ← SmtLibDsl.SMT.solve MagicSquare.magicSquareQuery
   MagicSquare.displayResult result
 
   return 0

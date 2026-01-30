@@ -1,5 +1,5 @@
 /-
-  CogitoCore - Countdown Numbers Game SMT Solver
+  SmtLibDsl - Countdown Numbers Game SMT Solver
   Ported from: https://github.com/palladin/fsharp-snippets/blob/master/src/FSharpSnippets/Countdown.fsx
 
   The Countdown Numbers Game:
@@ -14,9 +14,9 @@
   - op=0: Push a number, op=1: Apply an operator
   - opr: For push, the number; for apply, 0=Add, 1=Sub, 2=Mul, 3=Div
 -/
-import CogitoCore
+import SmtLibDsl
 
-open CogitoCore.SMT
+open SmtLibDsl.SMT
 
 namespace Countdown
 

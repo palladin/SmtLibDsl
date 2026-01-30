@@ -1,5 +1,5 @@
 /-
-  CogitoCore - N-Queens SMT Solver Example
+  SmtLibDsl - N-Queens SMT Solver Example
   Ported from: https://github.com/palladin/idris-snippets/blob/master/src/NQueensSMT.idr
 
   The N-Queens puzzle places N queens on an N×N chessboard such that:
@@ -12,9 +12,9 @@
   - All column values must be distinct
   - No two queens on same diagonal: |cols[i] - cols[j]| ≠ |i - j|
 -/
-import CogitoCore
+import SmtLibDsl
 
-open CogitoCore.SMT
+open SmtLibDsl.SMT
 
 namespace NQueens
 

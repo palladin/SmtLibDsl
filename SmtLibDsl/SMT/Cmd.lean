@@ -1,11 +1,11 @@
 /-
-  CogitoCore - SMT-LIB BitVector Theory DSL
+  SmtLibDsl - SMT-LIB BitVector Theory DSL
   Commands and Smt monad (free monad pattern)
 -/
-import CogitoCore.SMT.Expr
-import CogitoCore.SMT.Tensor
+import SmtLibDsl.SMT.Expr
+import SmtLibDsl.SMT.Tensor
 
-namespace CogitoCore.SMT
+namespace SmtLibDsl.SMT
 
 /-- Variable schema: list of (name, type) pairs tracking declared variables -/
 abbrev VarSchema := List (String × Ty)
@@ -85,4 +85,4 @@ def declareBoolTensor (name : String) (dims : List Nat) : Smt (Tensor dims (Expr
 def declareArray (name : String) (idxWidth : Nat) (elem : ElemTy) : Smt (Expr (Ty.array idxWidth elem)) :=
   Smt.bind (Cmd.declareConst name (Ty.array idxWidth elem)) Smt.pure
 
-end CogitoCore.SMT
+end SmtLibDsl.SMT

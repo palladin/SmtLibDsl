@@ -11,5 +11,5 @@
    "inputRev": "main",
    "inherited": false,
    "configFile": "lakefile.toml"}],
- "name": "CogitoCore",
+ "name": "SmtLibDsl",
  "lakeDir": ".lake"}

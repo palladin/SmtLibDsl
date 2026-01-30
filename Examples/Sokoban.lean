@@ -1,5 +1,5 @@
 /-
-  CogitoCore - Sokoban Puzzle SMT Solver
+  SmtLibDsl - Sokoban Puzzle SMT Solver
 
   Sokoban is a classic puzzle game where you push boxes onto goal positions.
   Rules:
@@ -12,10 +12,10 @@
   State at each step: player position + all box positions
   We iteratively increase the maximum steps until a solution is found.
 -/
-import CogitoCore
+import SmtLibDsl
 import Examples.SokobanLevels
 
-open CogitoCore.SMT
+open SmtLibDsl.SMT
 
 namespace Sokoban
 
@@ -402,7 +402,7 @@ def main (args : List String) : IO UInt32 := do
     return 0
 
   -- Check Z3 availability
-  match ← CogitoCore.SMT.checkZ3 with
+  match ← SmtLibDsl.SMT.checkZ3 with
   | .error msg =>
     IO.eprintln msg
     return 1
@@ -433,7 +433,7 @@ def main (args : List String) : IO UInt32 := do
     IO.print s!"Trying {n} step(s)... "
 
     let problem := sokobanQuery level n
-    let result ← CogitoCore.SMT.solve problem { dumpSmt := dumpSmt, profile := profile }
+    let result ← SmtLibDsl.SMT.solve problem { dumpSmt := dumpSmt, profile := profile }
 
     match result with
     | .sat model =>

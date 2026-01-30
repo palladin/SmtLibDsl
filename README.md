@@ -1,25 +1,44 @@
-# CogitoCore
+# SmtLibDsl
 
-An experimental AI project exploring the combination of **dependently-typed Lean DSL for SMT-LIB** with **Z3** and **powerful LLMs** to solve challenging reasoning puzzles and problems.
+A **type-safe SMT-LIB DSL** for Lean 4 with Z3 integration.
 
-## The Idea
+## What is SmtLibDsl?
 
-CogitoCore leverages the strengths of multiple paradigms:
+SmtLibDsl is a domain-specific language embedded in Lean 4 for writing SMT-LIB2 constraint programs. It provides:
 
-- **Lean 4**: A dependently-typed functional programming language that enables precise, type-safe specifications
-- **SMT-LIB / Z3**: Industry-standard satisfiability modulo theories solver for automated reasoning
-- **Large Language Models**: AI-powered understanding and problem decomposition
+- **Type-safe expressions** — Bitvector widths are tracked at compile time, preventing width mismatch errors
+- **Free monad DSL** — Composable SMT commands using Lean's do-notation
+- **SMT-LIB2 code generation** — Generates standards-compliant solver input
+- **Z3 integration** — Solve constraints and parse results directly from Lean
 
-By combining formal verification techniques with modern AI capabilities, CogitoCore aims to tackle complex logical reasoning tasks that neither approach could solve alone.
+## Quick Example
 
-## Features
+```lean
+import SmtLibDsl
 
-- **Type-safe SMT expressions**: Bitvector width and types are tracked at compile time
-- **Free monad DSL**: Composable SMT commands with do-notation
-- **SMT-LIB2 output**: Generate standards-compliant solver input
-- **Z3 integration**: Solve constraints directly from Lean
+open SmtLibDsl.SMT
 
-## Setup
+-- Find x where x + 1 = 10 (8-bit bitvector)
+def findX : Smt Unit := do
+  let x ← declareBV "x" 8
+  assert (x +. bv 1 8 =. bv 10 8)
+
+-- Compile to SMT-LIB2
+#eval compile findX
+/-
+(set-logic QF_ABV)
+(declare-const x (_ BitVec 8))
+(assert (= (bvadd x (_ bv1 8)) (_ bv10 8)))
+(check-sat)
+(get-model)
+-/
+
+-- Solve with Z3
+#eval solve findX
+-- Result: sat [(x, #x09)]
+```
+
+## Installation
 
 ### Prerequisites
 
@@ -28,150 +47,162 @@ By combining formal verification techniques with modern AI capabilities, CogitoC
   curl https://elan-init.lean-lang.org/ -sSf | sh
   ```
 
-- **Z3 SMT Solver**: Required for solving SMT queries
+- **Z3 SMT Solver**:
   ```bash
   # macOS
   brew install z3
 
   # Ubuntu/Debian
   sudo apt-get install z3
-
-  # Or download from https://github.com/Z3Prover/z3/releases
   ```
 
-### Quick Setup
-
-Run the setup script to check and install dependencies:
-
-```bash
-./scripts/setup.sh
-```
-
-### Build & Run
+### Build
 
 ```bash
 lake build
-lake exe cogito-core
 ```
 
 ### Run Tests
 
 ```bash
-lake exe cogito-test
+lake exe smtlibdsl-test
 ```
 
 ### Configuration
 
 | Environment Variable | Description | Default |
 |---------------------|-------------|---------|
-| `COGITO_Z3_PATH` | Path to Z3 executable | `z3` (uses PATH) |
+| `SMTLIBDSL_Z3_PATH` | Path to Z3 executable | `z3` (uses PATH) |
 
-Example with custom Z3 path:
-```bash
-COGITO_Z3_PATH=/opt/z3/bin/z3 lake exe cogito-core
-```
+## DSL Reference
 
-## Usage
+### Types
+
+| Type | Description |
+|------|-------------|
+| `Ty.bool` | Boolean |
+| `Ty.bitVec n` | Bitvector of width `n` |
+| `Ty.array idxWidth elem` | Array with bitvector index |
+
+### Declaring Variables
 
 ```lean
-import CogitoCore
+let x ← declareBV "x" 8           -- 8-bit bitvector
+let b ← declareBool "b"           -- Boolean
+let arr ← declareArray "a" 8 (ElemTy.bitVec 16)  -- Array
+let grid ← declareBVTensor "cell" [9, 9] 4       -- 9×9 tensor of 4-bit values
+```
 
-open CogitoCore.SMT
+### Operators
 
--- Define an SMT query: find x where x + 1 = 10 (8-bit bitvector)
-def findX : Smt Unit := do
-  let x ← declareBV "x" 8
-  assert (x +. bv 1 8 =. bv 10 8)
+**Arithmetic** (width-preserving):
+```lean
+x +. y    -- addition
+x -. y    -- subtraction
+x *. y    -- multiplication
+```
 
--- Compile to SMT-LIB2
-#eval compile findX
-/-
-(set-logic QF_BV)
-(declare-const x (_ BitVec 8))
-(assert (= (bvadd x (_ bv1 8)) (_ bv10 8)))
--/
+**Bitwise**:
+```lean
+x &. y    -- and
+x |. y    -- or
+x ^. y    -- xor
+~. x      -- not
+x <<. y   -- left shift
+x >>. y   -- logical right shift
+```
 
--- Solve with Z3 (automatically adds check-sat and get-model)
-#eval solve findX
--- Result: sat [(x, #x09)]
+**Comparisons** (return `Expr Ty.bool`):
+```lean
+x =. y     -- equality
+x <.ᵤ y    -- unsigned less-than
+x ≤.ᵤ y    -- unsigned less-or-equal
+x <.ₛ y    -- signed less-than
+x ≤.ₛ y    -- signed less-or-equal
+```
+
+**Boolean**:
+```lean
+a ∧. b    -- and
+a ∨. b    -- or
+¬. a      -- not
+a →. b    -- implication
+```
+
+**Arrays**:
+```lean
+selectArr arr idx        -- read
+storeArr arr idx val     -- write (returns new array)
+arr1 =.ₐ arr2           -- array equality
+```
+
+**Constraints**:
+```lean
+distinct [x, y, z]       -- all values are different
 ```
 
 ## Project Structure
 
 ```
-CogitoCore/
+SmtLibDsl/
 ├── SMT/
-│   ├── Cmd.lean      -- SMT commands & Smt monad
-│   ├── Compile.lean  -- Compile to SMT-LIB2
-│   ├── Expr.lean     -- Type-indexed SMT expressions
-│   ├── Solver.lean   -- Z3 integration
-│   └── Tensor.lean   -- Multi-dimensional tensor support
-├── SMT.lean          -- Re-exports SMT modules
+│   ├── Expr.lean      -- Type-indexed SMT expressions
+│   ├── Cmd.lean       -- SMT commands & Smt monad
+│   ├── Compile.lean   -- Compile to SMT-LIB2
+│   ├── Solver.lean    -- Z3 integration
+│   └── Tensor.lean    -- Multi-dimensional tensor support
 Examples/
-├── Countdown.lean    -- Countdown numbers game solver
-├── Eternity2.lean    -- Eternity II edge-matching puzzle
-├── Life.lean         -- Conway's Game of Life verification
-├── MagicSquare.lean  -- Magic square solver
-├── Minesweeper.lean  -- Minesweeper auto-solver
-├── NQueens.lean      -- N-Queens puzzle solver
-├── Sokoban.lean      -- Sokoban puzzle solver
-└── Sudoku.lean       -- 9×9 Sudoku solver
-Main.lean             -- CLI entry point
+├── Sudoku.lean        -- 9×9 Sudoku solver
+├── NQueens.lean       -- N-Queens puzzle
+├── MagicSquare.lean   -- Magic square solver
+├── Countdown.lean     -- Countdown numbers game
+├── Minesweeper.lean   -- Minesweeper auto-solver
+├── Sokoban.lean       -- Sokoban puzzle solver
+├── Life.lean          -- Conway's Game of Life
+└── Eternity2.lean     -- Edge-matching puzzle
 Tests/
-└── SMT.lean          -- Test suite
+└── SMT.lean           -- Test suite
 ```
 
 ## Examples
 
 ### Sudoku Solver
-Solves a 9×9 Sudoku puzzle using bitvector constraints.
 ```bash
 lake exe sudoku
 ```
+Uses 4-bit bitvectors for digits 1-9, with row/column/box distinctness constraints.
 
-### N-Queens Puzzle
-Places N queens on an N×N chessboard such that no two queens attack each other.
+### N-Queens
 ```bash
 lake exe nqueens
 ```
-
-### Eternity II Puzzle
-Solves edge-matching puzzles where pieces must be placed so adjacent edges match.
-```bash
-lake exe eternity2
-```
-
-### Conway's Game of Life
-Verifies the famous "LIFE" pattern from Knuth's TAOCP using SMT. Given an initial pattern, Z3 confirms it evolves to spell "LIFE" after 3 steps of Conway's Game of Life rules.
-```bash
-lake exe life
-```
-
-### Minesweeper Solver
-Automatically solves Minesweeper puzzles by using SMT to deduce which cells are definitely safe or definitely mines. Iteratively reveals safe cells until the entire grid is solved.
-```bash
-lake exe minesweeper
-```
-
-### Countdown Numbers Game
-Solves the classic Countdown numbers game puzzle. Given a set of numbers and a target, finds an arithmetic expression using +, -, *, / that evaluates to the target. Uses RPN (Reverse Polish Notation) stack-based evaluation with SMT constraints.
-```bash
-lake exe countdown
-```
+Places 8 queens on a chessboard with diagonal constraints using absolute difference.
 
 ### Magic Square
-Finds an n×n magic square where all rows, columns, and diagonals sum to the same "magic constant". Uses distinctness constraints and symmetry breaking to efficiently find solutions.
 ```bash
 lake exe magicsquare
 ```
+Finds an n×n grid where all rows, columns, and diagonals sum to the magic constant.
+
+### Countdown Numbers Game
+```bash
+lake exe countdown
+```
+Synthesizes arithmetic expressions using RPN stack-based evaluation.
+
+### Minesweeper
+```bash
+lake exe minesweeper
+```
+Iteratively deduces safe cells and mines using UNSAT queries.
 
 ### Sokoban
-Solves Sokoban puzzles by finding a sequence of moves (up/down/left/right) that pushes all boxes onto goal positions. Uses SMT to model player and box positions at each timestep. Includes 17 levels from original Sokoban and Microban collections.
 ```bash
 lake exe sokoban --list    # List available levels
 lake exe sokoban 2         # Solve level 2
 ```
+Finds move sequences to push boxes onto goals using state-space search.
 
 ## License
 
-See [LICENSE](LICENSE).
+MIT License. See [LICENSE](LICENSE).

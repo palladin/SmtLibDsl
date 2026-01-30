@@ -1,11 +1,11 @@
 /-
-  CogitoCore - SMT DSL Tests
+  SmtLibDsl - SMT DSL Tests
   Unit tests for the BitVector SMT-LIB DSL
 -/
 import LSpec
-import CogitoCore.SMT
+import SmtLibDsl.SMT
 
-open CogitoCore.SMT
+open SmtLibDsl.SMT
 open LSpec
 
 -- Test compileExpr for various expression types

@@ -1,10 +1,10 @@
 #!/bin/bash
-# CogitoCore Setup Script
+# SmtLibDsl Setup Script
 # Checks and installs required dependencies
 
 set -e
 
-echo "🔧 CogitoCore Setup"
+echo "🔧 SmtLibDsl Setup"
 echo "==================="
 echo ""
 
@@ -21,7 +21,7 @@ check_z3() {
 # Install Z3
 install_z3() {
   echo "📦 Installing Z3..."
-  
+
   if [[ "$OSTYPE" == "darwin"* ]]; then
     if command -v brew &> /dev/null; then
       brew install z3
@@ -77,7 +77,7 @@ if ! check_z3; then
   else
     echo ""
     echo "⚠️  Z3 is required for SMT solving."
-    echo "   Install manually or set COGITO_Z3_PATH environment variable."
+    echo "   Install manually or set SMTLIBDSL_Z3_PATH environment variable."
   fi
 fi
 
@@ -85,4 +85,4 @@ echo ""
 echo "✅ Setup complete!"
 echo ""
 echo "Build and run:"
-echo "  lake build && lake exe cogito-core"
+echo "  lake build && lake exe smtlibdsl"
